@@ -1,105 +1,65 @@
-import java.io.{File, PrintWriter}
-import java.nio.channels.Channels
+import java.io.{File, PrintWriter, Writer}
 import java.util.concurrent.TimeUnit
 
 import hu.ssh.progressbar.console.ConsoleProgressBar
+import iccparser.{ActivityAppParser, BaseAppParser, DotGraphModel, FullAppParser}
 import org.argus.amandroid.alir.componentSummary.ComponentSummaryTable.CHANNELS
 import org.argus.amandroid.alir.componentSummary._
-import org.argus.amandroid.alir.dataRecorder.{DataCollector, MetricRepo}
 import org.argus.amandroid.alir.pta.model.AndroidModelCallHandler
-import org.argus.amandroid.alir.pta.reachingFactsAnalysis.{AndroidReachingFactsAnalysis, AndroidReachingFactsAnalysisConfig, IntentHelper}
+import org.argus.amandroid.alir.pta.reachingFactsAnalysis.IntentHelper
 import org.argus.amandroid.alir.pta.summaryBasedAnalysis.AndroidSummaryProvider
 import org.argus.amandroid.core.decompile.{DecompileLayout, DecompileStrategy, DecompilerSettings}
 import org.argus.amandroid.core.model.Intent
-import org.argus.amandroid.core.{AndroidConstants, AndroidGlobalConfig, ApkGlobal}
-import org.argus.amandroid.plugin.communication.CommunicationSourceAndSinkManager
+import org.argus.amandroid.core.{AndroidGlobalConfig, ApkGlobal}
 import org.argus.amandroid.summary.wu.IntentWu
 import org.argus.jawa.alir.Context
-import org.argus.jawa.alir.cfg.{ICFGNode, InterProceduralControlFlowGraph}
+import org.argus.jawa.alir.cfg.ICFGNode
 import org.argus.jawa.alir.cg.CallGraph
-import org.argus.jawa.alir.dda.InterProceduralDataDependenceAnalysis
-import org.argus.jawa.alir.pta.suspark.InterProceduralSuperSpark
-import org.argus.jawa.alir.pta.{PTAResult, PTASlot}
+import org.argus.jawa.alir.pta.PTASlot
 import org.argus.jawa.alir.reachability.SignatureBasedCallGraph
 import org.argus.jawa.core._
-import org.argus.jawa.core.util.{MList, _}
+import org.argus.jawa.core.util.{ISet, MList, _}
 import org.argus.jawa.summary.wu.{PTStore, PTSummary, WorkUnit}
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.matching.Regex
 
 class Argus {
 
-  def run(): Unit = {
-    println("Running argus in Scala")
-//    val apkUri = FileUtil.toUri("app-debug.apk")
-    //        val apkUri = FileUtil.toUri("aarddict.android_26.apk")
-    //    val apkUri = FileUtil.toUri("ab.nwdesings.it.autocentribalduina.apk")
-            val apkUri = FileUtil.toUri("ab.java.programming.apk")
-    //        val apkUri = FileUtil.toUri("abid.hafedh.health.babygrowthguide.apk")
-    val outputUri = FileUtil.toUri("./output")
+  var baseResultPath : String = "./output"
+  var mode : String = "ACTIVITY"
+
+  def run(apkLocation : String, baseResultPath : String = "./output", mode : String): Unit = {
+    this.baseResultPath = baseResultPath
+    this.mode = mode
+    println("Running argus")
+
     val reporter = new PrintReporter(MsgLevel.ERROR)
     val yard = new ApkYard(reporter)
-    val layout = DecompileLayout(outputUri, true, "src", "lib", true)
+
+    val apk: ApkGlobal = loadApk(apkLocation, yard, reporter)
+    if(mode == "Full"){
+      print("Running full mode")
+      new FullAppParser(apk, yard).run
+    }else if( mode == "ACTIVITY"){
+      println("Running activity mode")
+      val outputLocation = s"$baseResultPath/${apk.model.getPackageName}-activity.dot"
+      val writer = new PrintWriter(new File(outputLocation))
+      new ActivityAppParser(apk, yard, writer).run
+      println(writer)
+    }
+
+//    Intent(apk)
+//    componentBasedGraph(apk, yard)
+  }
+
+  def loadApk(apkLocation : String, yard: ApkYard, reporter: Reporter) : ApkGlobal = {
+    val apkUri = FileUtil.toUri(apkLocation)
+    val outputUri = FileUtil.toUri("./output")
+    val layout = DecompileLayout(outputUri, createFolder = true, "src", "lib", createSeparateFolderForDexes = true)
     val strategy = DecompileStrategy(layout, new DefaultLibraryAPISummary(AndroidGlobalConfig.settings.third_party_lib_file))
-
-    val settings = DecompilerSettings(false, true, strategy, reporter)
-
-    val apk: ApkGlobal = yard.loadApk(apkUri, settings, true, true, false)
-
-    //    Spark(apk)
-    //    Signature(apk)
-    //        Facts(apk)
-//        Intent(apk)
-    componentBasedGraph(apk, yard)
-  }
-
-
-  def Spark(apk: ApkGlobal): Unit = {
-    var entryPoints = apk.getEntryPoints(AndroidConstants.MAINCOMP_ENV) // Exposed components
-    val spark = new InterProceduralSuperSpark(apk)
-    val idfg = spark.build(entryPoints.map(_.getSignature))
-    val icfg = idfg.icfg
-    val callGraph = icfg.getCallGraph
-
-    icfg.toDot(new PrintWriter(System.out))
-
-
-    val x = idfg.ptaresult.pointsToMap
-  }
-
-  def Signature(apk: ApkGlobal): Unit = {
-    var entryPoints = apk.getEntryPoints(AndroidConstants.MAINCOMP_ENV)
-    val signature = SignatureBasedCallGraph(apk, entryPoints.map(_.getSignature), None)
-    val callMap = signature.getCallMap
-  }
-
-  def Facts(apk: ApkGlobal): Unit = {
-    val icfg = new InterProceduralControlFlowGraph[ICFGNode]
-    val ptaresult = new PTAResult
-    val sp = new AndroidSummaryProvider(apk)
-
-    AndroidReachingFactsAnalysisConfig.resolve_icc = true
-    AndroidReachingFactsAnalysisConfig.resolve_static_init = false
-    AndroidReachingFactsAnalysisConfig.parallel = false
-
-    val analysis = new AndroidReachingFactsAnalysis(apk, icfg, ptaresult,
-      new AndroidModelCallHandler,
-      sp.getSummaryManager,
-      new ClassLoadManager,
-      AndroidReachingFactsAnalysisConfig.resolve_static_init,
-      timeout = Some(new MyTimeout(FiniteDuration(5, TimeUnit.MINUTES)))
-    )
-
-    var entryPoints = apk.getEntryPoints(AndroidConstants.MAINCOMP_ENV)
-
-    val entryPoint: JawaMethod = entryPoints.head
-    val idfg = analysis.build(entryPoint, initContext = new Context(apk.nameUri))
-    val iddResult = InterProceduralDataDependenceAnalysis(apk, idfg)
-    println(iddResult)
-
-    idfg.icfg.toDot(new PrintWriter(System.out))
+    val settings = DecompilerSettings(debugMode = false, forceDelete = true, strategy, reporter)
+    yard.loadApk(apkUri, settings, collectInfo = true, resolveCallBack = true, guessAppPackages = false)
   }
 
   def Intent(apk: ApkGlobal): Unit = {
@@ -120,8 +80,12 @@ class Argus {
     val candidate = store.getPropertyOrElse[MSet[(Context, PTASlot)]]("intent", msetEmpty)
     val intents: MSet[(Intent, Signature)] = msetEmpty
 
+    val lol = new DotGraphModel()
 
     val signature: MMap[Signature, String] = mmapEmpty
+    if (!candidate.nonEmpty){
+      return
+    }
     candidate.foreach { case (ctx, s) =>
       val intentInss = store.resolved.pointsToSet(ctx, s)
       val intent = IntentHelper.getIntentContents(store.resolved, intentInss, ctx)
@@ -131,7 +95,9 @@ class Argus {
       if (intent.head.componentNames.nonEmpty) {
         signature.put(ctx.getMethodSig, intent.head.componentNames.head)
         intents.add((intent.head, ctx.getMethodSig))
+        lol.add(ctx.getMethodSig, intent)
       } else {
+//        println(s"Origin ${ctx.getMethodSig}")
         println(s"NO component link. Its likely an action ${intent}")
       }
     }
@@ -142,7 +108,7 @@ class Argus {
     }
 
     //    buildFullAppGraph(cg, apk)
-    //    buildSimplifiedAppGraph(cg, apk)
+//        buildSimplifiedAppGraph(cg, apk)
     buildActivityGraph(intents, apk)
   }
 
@@ -163,6 +129,7 @@ class Argus {
 
   def componentBasedGraph(apk: ApkGlobal, yard: ApkYard): Unit = {
     ComponentBasedAnalysis.prepare(Set(apk))(FiniteDuration(5, TimeUnit.MINUTES))
+
     val cba = new ComponentBasedAnalysis(yard)
     cba.phase1(Set(apk))
     val iddResult = cba.phase2(Set(apk))
@@ -176,8 +143,12 @@ class Argus {
         if (intent.intent.componentNames.nonEmpty) {
           l.add((x._1, intent))
         } else {
-          println(s"NO component link. Its likely an action ${intent}")
+//          l.add(x._1, intent)
+          println(s"NO component link. Its likely an action $intent")
         }
+      }
+      table.asCallee.foreach{ x =>
+        val intent: IntentCallee = x._2.asInstanceOf[IntentCallee]
       }
     }
 
@@ -200,7 +171,7 @@ class Argus {
       }
     }
 
-    val writer = new PrintWriter(new File("data.dot"))
+    val writer = new PrintWriter(new File(s"$baseResultPath/${apk.model.getPackageName}-full.dot"))
 
     println("digraph G {")
     writer.write("digraph G {")
@@ -228,7 +199,7 @@ class Argus {
       }
     }
 
-    val writer = new PrintWriter(new File("data.dot"))
+    val writer = new PrintWriter(new File(s"$baseResultPath/${apk.model.getPackageName}-simple.dot"))
 
     println("digraph G {")
     writer.write("digraph G {")
@@ -251,13 +222,18 @@ class Argus {
     val t: MSet[(String, String, String)] = msetEmpty
 
     intents.foreach { x =>
-      val target = x._1.componentNames.head
+      var target = ""
+      if (x._1.componentNames.nonEmpty){
+        target = x._1.componentNames.head
+      }else{
+        target = x._1.actions.head
+      }
       val source = x._2.getClassName
       val label = x._2.methodName
       t.add(source, target, label)
     }
 
-    val writer = new PrintWriter(new File("data.dot"))
+    val writer = new PrintWriter(new File(s"$baseResultPath/${apk.model.getPackageName}-activity.dot"))
 
     println("digraph G {")
     writer.write("digraph G {")
