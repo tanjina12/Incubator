@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
                 }
 
                 val writer = PrintWriter(FileOutputStream(File("succes.csv"),true))
-                writer.append(it.toString())
+                writer.append(it.toString()+"\r\n")
                 writer.close()
             } catch (e: Exception) {
                 println(e.printStackTrace())
