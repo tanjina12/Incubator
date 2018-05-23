@@ -26,10 +26,10 @@ import scala.concurrent.duration.FiniteDuration
 
 class Argus {
 
-  var baseResultPath : String = "./output"
-  var mode : String = "ACTIVITY"
+  var baseResultPath: String = "./output"
+  var mode: String = "ACTIVITY"
 
-  def run(apkLocation : String, baseResultPath : String = "./output", mode : String): Unit = {
+  def run(apkLocation: String, baseResultPath: String = "./output", mode: String): Unit = {
     this.baseResultPath = baseResultPath
     this.mode = mode
     println("Running argus")
@@ -38,10 +38,10 @@ class Argus {
     val yard = new ApkYard(reporter)
 
     val apk: ApkGlobal = loadApk(apkLocation, yard, reporter)
-    if(mode == "Full"){
+    if (mode == "Full") {
       print("Running full mode")
       new FullAppParser(apk, yard).run
-    }else if( mode == "ACTIVITY"){
+    } else if (mode == "ACTIVITY") {
       println("Running activity mode")
       val outputLocation = s"$baseResultPath/${apk.model.getPackageName}-activity.dot"
       val writer = new PrintWriter(new File(outputLocation))
@@ -49,11 +49,11 @@ class Argus {
       println(writer)
     }
 
-//    Intent(apk)
-//    componentBasedGraph(apk, yard)
+    //    Intent(apk)
+    //    componentBasedGraph(apk, yard)
   }
 
-  def loadApk(apkLocation : String, yard: ApkYard, reporter: Reporter) : ApkGlobal = {
+  def loadApk(apkLocation: String, yard: ApkYard, reporter: Reporter): ApkGlobal = {
     val apkUri = FileUtil.toUri(apkLocation)
     val outputUri = FileUtil.toUri("./output")
     val layout = DecompileLayout(outputUri, createFolder = true, "src", "lib", createSeparateFolderForDexes = true)
@@ -83,7 +83,7 @@ class Argus {
     val lol = new DotGraphModel()
 
     val signature: MMap[Signature, String] = mmapEmpty
-    if (!candidate.nonEmpty){
+    if (!candidate.nonEmpty) {
       return
     }
     candidate.foreach { case (ctx, s) =>
@@ -97,7 +97,7 @@ class Argus {
         intents.add((intent.head, ctx.getMethodSig))
         lol.add(ctx.getMethodSig, intent)
       } else {
-//        println(s"Origin ${ctx.getMethodSig}")
+        //        println(s"Origin ${ctx.getMethodSig}")
         println(s"NO component link. Its likely an action ${intent}")
       }
     }
@@ -108,7 +108,7 @@ class Argus {
     }
 
     //    buildFullAppGraph(cg, apk)
-//        buildSimplifiedAppGraph(cg, apk)
+    //        buildSimplifiedAppGraph(cg, apk)
     buildActivityGraph(intents, apk)
   }
 
@@ -143,11 +143,11 @@ class Argus {
         if (intent.intent.componentNames.nonEmpty) {
           l.add((x._1, intent))
         } else {
-//          l.add(x._1, intent)
+          //          l.add(x._1, intent)
           println(s"NO component link. Its likely an action $intent")
         }
       }
-      table.asCallee.foreach{ x =>
+      table.asCallee.foreach { x =>
         val intent: IntentCallee = x._2.asInstanceOf[IntentCallee]
       }
     }
@@ -223,9 +223,9 @@ class Argus {
 
     intents.foreach { x =>
       var target = ""
-      if (x._1.componentNames.nonEmpty){
+      if (x._1.componentNames.nonEmpty) {
         target = x._1.componentNames.head
-      }else{
+      } else {
         target = x._1.actions.head
       }
       val source = x._2.getClassName

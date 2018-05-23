@@ -6,7 +6,7 @@ import org.argus.jawa.alir.cg.CallGraph
 import org.argus.jawa.core.Signature
 import org.argus.jawa.core.util._
 
-class DotGraphModel(cg : CallGraph = null) {
+class DotGraphModel(cg: CallGraph = null) {
   val callerGraph: MSet[(Signature, Intent)] = msetEmpty
   val calleeGraph: MSet[(Signature, Intent)] = msetEmpty
   val t: MSet[(String, String, String)] = msetEmpty
@@ -36,7 +36,7 @@ class DotGraphModel(cg : CallGraph = null) {
         target = x._2.componentNames.head
       } else if (calleeContains(x._2.actions.head)) {
         target = x._2.actions.head
-      }else{
+      } else {
         return t
       }
 
@@ -73,7 +73,7 @@ class DotGraphModel(cg : CallGraph = null) {
     new Signature(s"${className.replace(".", "/")};.dummyInit:()V")
   }
 
-  def calleeContains(actionIntent : String): Boolean ={
+  def calleeContains(actionIntent: String): Boolean = {
     calleeGraph.exists(x => x._2.actions.nonEmpty && x._2.actions.head == actionIntent)
   }
 }

@@ -9,16 +9,16 @@ fun main(args: Array<String>) {
     val basePathResult = config[incubator.output]
     val mode = config[incubator.mode]
     File(config[incubator.apk]).walk().forEach {
-        if (it.extension == "apk"){
+        if (it.extension == "apk") {
             println(it)
 
-            if(!File(basePathResult).exists()){
+            if (!File(basePathResult).exists()) {
                 File(basePathResult).mkdir()
             }
 
             try {
                 Argus().run(it.toString(), basePathResult, mode.toString())
-            }catch (e : Exception){
+            } catch (e: Exception) {
                 println(e.printStackTrace())
                 println("Failed skipping..")
                 val errorFile = File("errors.txt")
