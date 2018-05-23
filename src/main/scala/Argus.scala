@@ -46,7 +46,6 @@ class Argus {
       val outputLocation = s"$baseResultPath/${apk.model.getPackageName}-activity.dot"
       val writer = new PrintWriter(new File(outputLocation))
       new ActivityAppParser(apk, yard, writer).run
-      println(writer)
     }
 
     //    Intent(apk)

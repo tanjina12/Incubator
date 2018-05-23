@@ -1,6 +1,8 @@
 import com.natpryce.konfig.ConfigurationProperties
 import java.io.File
 import config.incubator
+import org.apache.commons.brut.io.FileUtils
+import java.io.PrintWriter
 
 
 fun main(args: Array<String>) {
@@ -18,12 +20,21 @@ fun main(args: Array<String>) {
 
             try {
                 Argus().run(it.toString(), basePathResult, mode.toString())
+                if(File("./output").isDirectory){
+                    FileUtils.deleteDirectory(File("./output"))
+                }
+
+                val writer = PrintWriter(File("succes.csv"))
+                writer.append(it.toString())
+                writer.close()
             } catch (e: Exception) {
                 println(e.printStackTrace())
-                println("Failed skipping..")
+                println("Failed skipping.. $it")
                 val errorFile = File("errors.txt")
-                errorFile.writeText("Failed skipping..")
-                errorFile.writeText(e.printStackTrace().toString())
+                val writer = PrintWriter(errorFile)
+                writer.append("Failed skipping.. $it \r\n")
+                e.printStackTrace(writer)
+                writer.close()
             }
 
         }
