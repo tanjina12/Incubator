@@ -2,6 +2,7 @@ import com.natpryce.konfig.ConfigurationProperties
 import java.io.File
 import config.incubator
 import org.apache.commons.brut.io.FileUtils
+import java.io.FileOutputStream
 import java.io.PrintWriter
 
 
@@ -24,14 +25,14 @@ fun main(args: Array<String>) {
                     FileUtils.deleteDirectory(File("./output"))
                 }
 
-                val writer = PrintWriter(File("succes.csv"))
+                val writer = PrintWriter(FileOutputStream(File("succes.csv"),true))
                 writer.append(it.toString())
                 writer.close()
             } catch (e: Exception) {
                 println(e.printStackTrace())
                 println("Failed skipping.. $it")
                 val errorFile = File("errors.txt")
-                val writer = PrintWriter(errorFile)
+                val writer = PrintWriter(FileOutputStream(errorFile, true ))
                 writer.append("Failed skipping.. $it \r\n")
                 e.printStackTrace(writer)
                 writer.close()

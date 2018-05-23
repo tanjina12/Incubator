@@ -56,7 +56,7 @@ abstract class BaseAppParser(apk: ApkGlobal, yard: ApkYard, writer: Writer) {
       println(intent)
       println()
 
-      if(intent.isEmpty){
+      if(intent.nonEmpty){
         if (intent.head.componentNames.nonEmpty) {
           dotGraph.add(ctx.getMethodSig, intent, caller = true)
         } else {
