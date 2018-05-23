@@ -38,18 +38,18 @@ class Argus {
     val yard = new ApkYard(reporter)
 
     val apk: ApkGlobal = loadApk(apkLocation, yard, reporter)
-    if (mode == "Full") {
-      print("Running full mode")
-      new FullAppParser(apk, yard).run
-    } else if (mode == "ACTIVITY") {
-      println("Running activity mode")
-      val outputLocation = s"$baseResultPath/${apk.model.getPackageName}-activity.dot"
-      val writer = new PrintWriter(new File(outputLocation))
-      new ActivityAppParser(apk, yard, writer).run
-    }
+        if (mode == "Full") {
+          print("Running full mode")
+          new FullAppParser(apk, yard).run
+        } else if (mode == "ACTIVITY") {
+          println("Running activity mode")
+          val outputLocation = s"$baseResultPath/${apk.model.getPackageName}-activity.dot"
+          val writer = new PrintWriter(new File(outputLocation))
+          new ActivityAppParser(apk, yard, writer).run
+        }
 
     //    Intent(apk)
-    //    componentBasedGraph(apk, yard)
+//    componentBasedGraph(apk, yard)
   }
 
   def loadApk(apkLocation: String, yard: ApkYard, reporter: Reporter): ApkGlobal = {
@@ -138,20 +138,22 @@ class Argus {
     apk.getSummaryTables.foreach { st =>
       val table: ICC_Summary = st._2.get(CHANNELS.ICC)
       table.asCaller.foreach { x =>
-        val intent: IntentCaller = x._2.asInstanceOf[IntentCaller]
-        if (intent.intent.componentNames.nonEmpty) {
-          l.add((x._1, intent))
-        } else {
-          //          l.add(x._1, intent)
-          println(s"NO component link. Its likely an action $intent")
+        x._2 match {
+          case p: IntentCaller => {
+            if (p.intent.componentNames.nonEmpty) {
+              l.add((x._1, p))
+            } else {
+              //          l.add(x._1, intent)
+              println(s"NO component link. Its likely an action $p")
+            }
+          }
+          case p: IntentCallee =>
+          case p: IntentResultCallee =>
+          case p: IntentResultCallee =>
         }
-      }
-      table.asCallee.foreach { x =>
-        val intent: IntentCallee = x._2.asInstanceOf[IntentCallee]
+
       }
     }
-
-    apk.model.getCallbackMethods
 
     buildActivityGraph(l.map(x => (x._2.intent, x._1.getOwner)), apk)
   }

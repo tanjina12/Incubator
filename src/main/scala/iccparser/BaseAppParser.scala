@@ -55,10 +55,15 @@ abstract class BaseAppParser(apk: ApkGlobal, yard: ApkYard, writer: Writer) {
       println(s"${ctx.getMethodSig.methodName} calls Intent:")
       println(intent)
       println()
-      if (intent.head.componentNames.nonEmpty) {
-        dotGraph.add(ctx.getMethodSig, intent, caller = true)
-      } else {
-        println(s"NO component link. Its likely an action $intent")
+
+      if(intent.isEmpty){
+        if (intent.head.componentNames.nonEmpty) {
+          dotGraph.add(ctx.getMethodSig, intent, caller = true)
+        } else {
+          println(s"NO component link. Its likely an action $intent")
+        }
+      }else{
+        println(s"No intent found... $ctx")
       }
     }
 
@@ -91,12 +96,18 @@ abstract class BaseAppParser(apk: ApkGlobal, yard: ApkYard, writer: Writer) {
     apk.getSummaryTables.foreach { st =>
       val table: ICC_Summary = st._2.get(CHANNELS.ICC)
       table.asCaller.foreach { x =>
-        val intent: IntentCaller = x._2.asInstanceOf[IntentCaller]
-        if (intent.intent.componentNames.nonEmpty) {
-          dotGraphModel.addCallerTarget(x._1.getOwner, intent.intent)
-        } else {
-          dotGraphModel.addCalleeTarget(x._1.getOwner, intent.intent)
-          println(s"NO component link. Its likely an action $intent")
+        x._2 match {
+          case intent : IntentCaller => {
+            if (intent.intent.componentNames.nonEmpty) {
+              dotGraphModel.addCallerTarget(x._1.getOwner, intent.intent)
+            } else {
+              dotGraphModel.addCalleeTarget(x._1.getOwner, intent.intent)
+              println(s"NO component link. Its likely an action $intent")
+            }
+          }
+          case intent : IntentCallee => println(s"IntentCallee found! $intent")
+          case intent : IntentResultCaller => println(s"IntentResultCaller found! $intent")
+          case intent : IntentResultCallee => println(s"IntentResultCallee found! $intent")
         }
       }
     }
