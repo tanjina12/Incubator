@@ -10,6 +10,7 @@ class DotGraphModel(cg: CallGraph = null) {
   val callerGraph: MSet[(Signature, Intent)] = msetEmpty
   val calleeGraph: MSet[(Signature, Intent)] = msetEmpty
   val t: MSet[(String, String, String)] = msetEmpty
+  val endStringRegex = "[$1-9]+$"
 
   def addCallerTarget(signature: Signature, intent: Intent): Unit = {
     callerGraph.add(signature, intent)
@@ -33,14 +34,14 @@ class DotGraphModel(cg: CallGraph = null) {
     callerGraph.foreach { x =>
       var target = ""
       if (x._2.componentNames.nonEmpty) {
-        target = x._2.componentNames.head
+        target = x._2.componentNames.head.replaceAll(endStringRegex, "")
       } else if (calleeContains(x._2.actions.head)) {
-        target = x._2.actions.head
+        target = x._2.actions.head.replaceAll(endStringRegex, "")
       } else {
         return t
       }
 
-      val source = x._1.getClassName
+      val source = x._1.getClassName.replaceAll(endStringRegex, "")
       val label = x._1.methodName
       t.add(source, target, label)
     }
@@ -48,25 +49,41 @@ class DotGraphModel(cg: CallGraph = null) {
     return t
   }
 
-  def buildFullAppGraph(apk: ApkGlobal): MList[(String, String)] = {
-    val callGraph: MList[(String, String)] = mlistEmpty
+  def buildFullAppGraph(apk: ApkGlobal): MSet[(String, String)] = {
+    val callGraph: MSet[(String, String)] = msetEmpty
 
     callerGraph.foreach { s =>
-      val sig = getSignature(s._1.getClassName)
-      cg.addCall(s._1, sig)
+      if (s._2.componentNames.nonEmpty) {
+        val sig = getSignature(s._2.componentNames.head)
+        cg.addCall(s._1, sig)
+      }
     }
 
     cg.getCallMap.foreach { c =>
-      callGraph += ((c._1.getClassName, c._1.toString()))
       c._2.foreach { p =>
-        if (c._1.getClassName != p.getClassName) {
-          if (p.classTyp.getPackageName == apk.model.getPackageName) {
-            callGraph += ((c._1.toString(), p.signature.toString))
-          }
+        if (p.classTyp.getPackageName == apk.model.getPackageName || p.methodName == "dummyInit") {
+          callGraph += ((c._1.toString(), p.signature.toString))
         }
       }
     }
     return callGraph
+  }
+
+  def buildSimplifiedAppGraph(apk: ApkGlobal): MSet[(String, String, String)] = {
+    val graph: MSet[(String, String, String)] = msetEmpty
+
+    cg.getCallMap.foreach { c =>
+      c._2.foreach { p =>
+        val source = c._1.getClassName.replaceAll(endStringRegex, "")
+        val target = p.getClassName.replaceFirst(endStringRegex, "")
+        if (source != target) {
+          if (p.classTyp.getPackageName == apk.model.getPackageName || p.methodName == "dummyInit") {
+            graph += ((source, target, c._1.methodName))
+          }
+        }
+      }
+    }
+    return graph
   }
 
   private def getSignature(className: String): Signature = {

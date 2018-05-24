@@ -6,10 +6,16 @@ import org.argus.amandroid.alir.componentSummary._
 import org.argus.amandroid.core.ApkGlobal
 import org.argus.jawa.core.util.MSet
 
-class ActivityAppParser(apk: ApkGlobal, yard: ApkYard, writer: Writer = new PrintWriter(System.out)) extends BaseAppParser(apk, yard, writer) {
+class ActivityAppParser(apk: ApkGlobal, yard: ApkYard, var writer: Writer = new PrintWriter(System.out)) extends BaseAppParser(apk, yard, writer) {
 
   override def run: Unit = {
     val dotGraphModel = Intent()
+    val dotLayout: MSet[(String, String, String)] = dotGraphModel.buildActivityGraph
+    writeGraph(dotLayout)
+  }
+
+  override def run(dotGraphModel: DotGraphModel, writer: Writer): Unit = {
+    this.writer = writer
     val dotLayout: MSet[(String, String, String)] = dotGraphModel.buildActivityGraph
     writeGraph(dotLayout)
   }

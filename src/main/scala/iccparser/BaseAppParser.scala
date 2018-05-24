@@ -27,6 +27,7 @@ import scala.concurrent.duration.FiniteDuration
 abstract class BaseAppParser(apk: ApkGlobal, yard: ApkYard, writer: Writer) {
 
   def run: Unit
+  def run(dotGraphModel: DotGraphModel, writer: Writer): Unit
 
   val lineSeparator = "\r\n"
 
