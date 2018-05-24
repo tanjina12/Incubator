@@ -9,7 +9,6 @@ import org.argus.jawa.core.util._
 class DotGraphModel(cg: CallGraph = null) {
   val callerGraph: MSet[(Signature, Intent)] = msetEmpty
   val calleeGraph: MSet[(Signature, Intent)] = msetEmpty
-  val t: MSet[(String, String, String)] = msetEmpty
   val endStringRegex = "[$1-9]+$"
 
   def addCallerTarget(signature: Signature, intent: Intent): Unit = {
@@ -31,6 +30,8 @@ class DotGraphModel(cg: CallGraph = null) {
   }
 
   def buildActivityGraph: MSet[(String, String, String)] = {
+    val graph: MSet[(String, String, String)] = msetEmpty
+
     callerGraph.foreach { x =>
       var target = ""
       if (x._2.componentNames.nonEmpty) {
@@ -38,15 +39,15 @@ class DotGraphModel(cg: CallGraph = null) {
       } else if (calleeContains(x._2.actions.head)) {
         target = x._2.actions.head.replaceAll(endStringRegex, "")
       } else {
-        return t
+        return graph
       }
 
       val source = x._1.getClassName.replaceAll(endStringRegex, "")
       val label = x._1.methodName
-      t.add(source, target, label)
+      graph.add(source, target, label)
     }
 
-    return t
+    return graph
   }
 
   def buildFullAppGraph(apk: ApkGlobal): MSet[(String, String)] = {

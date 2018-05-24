@@ -61,7 +61,7 @@ abstract class BaseAppParser(apk: ApkGlobal, yard: ApkYard, writer: Writer) {
         if (intent.head.componentNames.nonEmpty) {
           dotGraph.add(ctx.getMethodSig, intent, caller = true)
         } else {
-          println(s"NO component link. Its likely an action $intent")
+          println(s"NO component link. Its likely an action ${intent.head}")
         }
       }else{
         println(s"No intent found... $ctx")
