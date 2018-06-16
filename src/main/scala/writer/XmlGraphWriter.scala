@@ -4,7 +4,7 @@ import java.io.Writer
 
 class XmlGraphWriter(writer: Writer) extends BaseGraphWriter {
   override def write(graph: List[(String, String, String)], packageName: String): Unit = {
-    writer.write(s"<Graph>$lineSeparator")
+    writer.write(s"<$packageName>$lineSeparator")
     graph.foreach {
       case (source, target, method) =>
         writer.write("<ICC>")
@@ -13,7 +13,7 @@ class XmlGraphWriter(writer: Writer) extends BaseGraphWriter {
         writer.write(s"<method>$method</method>$lineSeparator")
         writer.write("</ICC>")
     }
-    writer.write("</Graph>")
+    writer.write(s"</$packageName>")
 
   }
 }

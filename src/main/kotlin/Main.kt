@@ -45,9 +45,9 @@ fun runArgus(app : File, basePathResult: String, mode : Mode){
             FileUtils.deleteDirectory(File("./output"))
         }
 
-//                val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
-//                writer.append(it.toString() + "\r\n")
-//                writer.close()
+        val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
+        writer.append(app.toString() + "\r\n")
+        writer.close()
     } catch (e : IOException){
     } catch (e: Exception) {
         println(e.printStackTrace())
