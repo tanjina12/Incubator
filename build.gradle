@@ -1,5 +1,7 @@
 buildscript {
     ext.kotlin_version = '1.2.41'
+    ext.scalaFullVersion = '2.12.4'
+
 
     repositories {
         mavenCentral()
@@ -10,7 +12,6 @@ buildscript {
 }
 
 group 'kpmg.uva'
-version '1.0-SNAPSHOT'
 
 apply plugin: 'kotlin'
 apply plugin: 'scala'
@@ -29,13 +30,23 @@ jar {
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+    compile 'org.scala-lang:scala-library:2.12.4'
     compile 'com.natpryce:konfig:1.6.7.0'
 
-    compile 'com.github.arguslab:amandroid_2.12:3.1.3'
-    compile 'com.github.arguslab:jawa_2.12:3.1.3'
-    compile 'com.github.arguslab:saf-library_2.12:3.1.3'
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+
+//    compile 'com.github.arguslab:amandroid_2.12:3.1.3'
+//    compile 'com.github.arguslab:jawa_2.12:3.1.3'
+//    compile 'com.github.arguslab:saf-library_2.12:3.1.3'
+    compile files('libs/argus-saf-3.1.4.jar')
+
+    //FlowDroid
+    compile files('libs/soot-3.1.0-jar-with-dependencies.jar')
+    compile files('libs/soot-infoflow-android-classes.jar')
+    compile files('libs/soot-infoflow-classes.jar')
+    compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.5.1'
+
 }
 
 compileScala.dependsOn = compileScala.taskDependencies.values - 'compileJava'
@@ -45,9 +56,8 @@ classes.dependsOn compileKotlin
 
 compileKotlin {
     kotlinOptions.jvmTarget = "1.8"
-
-
 }
+
 compileTestKotlin {
     kotlinOptions.jvmTarget = "1.8"
 }

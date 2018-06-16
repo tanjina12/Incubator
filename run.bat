@@ -1,2 +1,2 @@
-java -Xms4g -Xmx8g -jar Incubator.jar
+java -Xms4g -Xmx12g -jar Incubator.jar
 pause

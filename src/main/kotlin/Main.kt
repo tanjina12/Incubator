@@ -1,7 +1,9 @@
 import com.natpryce.konfig.ConfigurationProperties
+import config.Mode
 import java.io.File
 import config.incubator
-import org.apache.commons.brut.io.FileUtils
+import org.apache.commons.io.FileUtils
+import parser.FlowDroid
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.PrintWriter
@@ -24,26 +26,36 @@ fun main(args: Array<String>) {
                 File(basePathResult).mkdir()
             }
 
-            try {
-                Argus().run(it.toString(), basePathResult, mode.toString())
-                if (File("./output").isDirectory) {
-                    FileUtils.deleteDirectory(File("./output"))
-                }
+            runArgus(it, basePathResult, mode)
+//            runFlowDroid()
+        }
+    }
+
+
+}
+
+fun runFlowDroid(){
+    FlowDroid()
+}
+
+fun runArgus(app : File, basePathResult: String, mode : Mode){
+    try {
+        Argus().run(app.toString(), basePathResult, mode.toString())
+        if (File("./output").isDirectory) {
+            FileUtils.deleteDirectory(File("./output"))
+        }
 
 //                val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
 //                writer.append(it.toString() + "\r\n")
 //                writer.close()
-            } catch (e : IOException){
-            } catch (e: Exception) {
-                println(e.printStackTrace())
-                println("Failed skipping.. $it")
-                val errorFile = File("errors.txt")
-                val writer = PrintWriter(FileOutputStream(errorFile, true ))
-                writer.append("Failed skipping.. $it \r\n")
-                e.printStackTrace(writer)
-                writer.close()
-            }
-
-        }
+    } catch (e : IOException){
+    } catch (e: Exception) {
+        println(e.printStackTrace())
+        println("Failed skipping.. $app")
+        val errorFile = File("errors.txt")
+        val writer = PrintWriter(FileOutputStream(errorFile, true ))
+        writer.append("Failed skipping.. $app \r\n")
+        e.printStackTrace(writer)
+        writer.close()
     }
 }
