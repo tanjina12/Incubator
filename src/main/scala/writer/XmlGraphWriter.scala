@@ -7,13 +7,13 @@ class XmlGraphWriter(writer: Writer) extends BaseGraphWriter {
     writer.write(s"<$packageName>$lineSeparator")
     graph.foreach {
       case (source, target, method) =>
-        writer.write("<ICC>")
+        writer.write(s"<ICC>$lineSeparator")
         writer.write(s"<source>$source</source>$lineSeparator")
         writer.write(s"<target>$target</target>$lineSeparator")
         writer.write(s"<method>$method</method>$lineSeparator")
-        writer.write("</ICC>")
+        writer.write(s"</ICC>$lineSeparator")
     }
     writer.write(s"</$packageName>")
-
+    writer.close()
   }
 }

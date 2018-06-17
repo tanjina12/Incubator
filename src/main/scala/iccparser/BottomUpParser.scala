@@ -11,22 +11,29 @@ import org.argus.amandroid.core.ApkGlobal
 import org.argus.amandroid.core.model.Intent
 import org.argus.amandroid.summary.wu.IntentWu
 import org.argus.jawa.alir.Context
+import org.argus.jawa.alir.cg.CallGraph
 import org.argus.jawa.alir.pta.PTASlot
 import org.argus.jawa.alir.reachability.SignatureBasedCallGraph
 import org.argus.jawa.core.{Global, Signature}
 import org.argus.jawa.core.util.{IList, ISet, MSet, msetEmpty}
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
 import org.argus.jawa.summary.wu.{PTStore, PTSummary, WorkUnit}
+import writer.MethodWriter
 
 class BottomUpParser(store: PTStore) extends BaseAppParser {
+  var callGraph = new CallGraph()
+
+  def writeMethods(writer: MethodWriter) = {
+    writer.write(callGraph)
+  }
 
 
-  def parse(apk: ApkGlobal, yard: ApkYard) : Unit = {
+  def parse(apk: ApkGlobal, yard: ApkYard): Unit = {
     val handler: AndroidModelCallHandler = new AndroidModelCallHandler
     val sm: SummaryManager = new AndroidSummaryProvider(apk).getSummaryManager
     val analysis = new BottomUpSummaryGenerator[Global](apk, sm, handler, PTSummary(_, _), ConsoleProgressBar.on(System.out).withFormat("[:bar] :percent% :elapsed Left: :remain"))
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
-    val callGraph = SignatureBasedCallGraph(apk, signatures, None)
+    callGraph = SignatureBasedCallGraph(apk, signatures, None)
 
     val orderedWUs: IList[WorkUnit[Global]] = callGraph.topologicalSort(true).map { sig =>
       val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
@@ -36,7 +43,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     analysis.build(orderedWUs)
   }
 
-  def collectIntents(apk: ApkGlobal): Unit ={
+  def collectIntents(apk: ApkGlobal): Unit = {
     val candidate = store.getPropertyOrElse[MSet[(Context, PTASlot)]]("intent", msetEmpty)
 
     val explicitIntents: MSet[(Context, Intent)] = msetEmpty
@@ -58,7 +65,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
         if (intent.componentNames.nonEmpty) {
           intent.componentNames.foreach(name => {
             println(context.getMethodSig.classTyp + " -ICC-> " + name + " by method " + context.getMethodSig.methodName)
-            graph = graph:+((context.getMethodSig.classTyp.jawaName, name, context.getMethodSig.methodName))
+            graph = graph :+ ((context.getMethodSig.classTyp.jawaName, name, context.getMethodSig.methodName))
           })
         }
         if (intent.actions.nonEmpty) {
@@ -71,7 +78,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
                     filter.getActions.foreach(u => {
                       if (u.equals(f)) {
                         println(context.getMethodSig.classTyp + " -ICC-Action-> " + f + " --> " + classType + " by method " + context.getMethodSig.methodName)
-                        graph = graph:+((context.getMethodSig.classTyp.jawaName, f, context.getMethodSig.methodName))
+                        graph = graph :+ ((context.getMethodSig.classTyp.jawaName, classType.jawaName, context.getMethodSig.methodName + ";" + f))
                       }
                     })
                   }

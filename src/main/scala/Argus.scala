@@ -5,7 +5,7 @@ import iccparser._
 import org.argus.amandroid.alir.componentSummary._
 import org.argus.jawa.core._
 import org.argus.jawa.summary.wu.PTStore
-import writer.{CsvGraphWriter, DotGraphWriter, SystemOutGraphWriter, XmlGraphWriter}
+import writer._
 
 class Argus {
 
@@ -22,18 +22,19 @@ class Argus {
     val reporter = new PrintReporter(MsgLevel.ERROR)
     val yard = new ApkYard(reporter)
     val store: PTStore = new PTStore
-    val bottomUpParser = new BottomUpParser(store)
+    val parser = new BottomUpParser(store)
+//    val parser = new ComponentBasedParser
 
     println("Load apk")
-    val apk = bottomUpParser.loadApk(apkLocation, yard, reporter)
+    val apk = parser.loadApk(apkLocation, yard, reporter)
     printEstimatedTimeElapsed(startTime)
 
     println("Parse apk")
-    bottomUpParser.parse(apk, yard)
+    parser.parse(apk, yard)
     printEstimatedTimeElapsed(startTime)
 
     println("Collect intents")
-    bottomUpParser.collectIntents(apk)
+    parser.collectIntents(apk)
     printEstimatedTimeElapsed(startTime)
 
     println("Write graph to file")
@@ -41,10 +42,15 @@ class Argus {
     val xmlWriter: XmlGraphWriter = new XmlGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}.xml"))
     val dotWriter: DotGraphWriter = new DotGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}.dot"))
     val outWriter: SystemOutGraphWriter = new SystemOutGraphWriter
+    val methodWriter: MethodWriter = new MethodWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}-methods.csv"))
     val writers = Set(csvWriter, xmlWriter, dotWriter, outWriter)
 
-    bottomUpParser.writeGraph(writers, apk)
+    parser.writeGraph(writers, apk)
     printEstimatedTimeElapsed(startTime)
+
+    parser.writeMethods(methodWriter)
+    printEstimatedTimeElapsed(startTime)
+
     println(s"Finished analysis for ${apk.model.getPackageName}")
   }
 
