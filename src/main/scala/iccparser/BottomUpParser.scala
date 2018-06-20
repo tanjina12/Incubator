@@ -1,7 +1,5 @@
 package iccparser
 
-import java.io.{PrintWriter, Writer}
-
 import hu.ssh.progressbar.console.ConsoleProgressBar
 import org.argus.amandroid.alir.componentSummary.ApkYard
 import org.argus.amandroid.alir.pta.model.AndroidModelCallHandler
@@ -11,20 +9,20 @@ import org.argus.amandroid.core.ApkGlobal
 import org.argus.amandroid.core.model.Intent
 import org.argus.amandroid.summary.wu.IntentWu
 import org.argus.jawa.alir.Context
-import org.argus.jawa.alir.cg.CallGraph
 import org.argus.jawa.alir.pta.PTASlot
 import org.argus.jawa.alir.reachability.SignatureBasedCallGraph
-import org.argus.jawa.core.{Global, Signature}
 import org.argus.jawa.core.util.{IList, ISet, MSet, msetEmpty}
-import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
+import org.argus.jawa.core.{Global, Signature}
 import org.argus.jawa.summary.wu.{PTStore, PTSummary, WorkUnit}
+import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
 import writer.MethodWriter
 
 class BottomUpParser(store: PTStore) extends BaseAppParser {
-  var callGraph = new CallGraph()
 
-  def writeMethods(writer: MethodWriter) = {
-    writer.write(callGraph)
+  def writeMethods(writer: MethodWriter, apk: ApkGlobal) = {
+    val components = collectComponents(apk)
+    val methods = collectMethods(apk, components)
+    writer.write(methods)
   }
 
 
@@ -33,7 +31,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val sm: SummaryManager = new AndroidSummaryProvider(apk).getSummaryManager
     val analysis = new BottomUpSummaryGenerator[Global](apk, sm, handler, PTSummary(_, _), ConsoleProgressBar.on(System.out).withFormat("[:bar] :percent% :elapsed Left: :remain"))
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
-    callGraph = SignatureBasedCallGraph(apk, signatures, None)
+    val callGraph = SignatureBasedCallGraph(apk, signatures, None)
 
     val orderedWUs: IList[WorkUnit[Global]] = callGraph.topologicalSort(true).map { sig =>
       val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
