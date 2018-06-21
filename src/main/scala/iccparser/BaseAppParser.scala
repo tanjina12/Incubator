@@ -4,7 +4,7 @@ import org.argus.amandroid.alir.componentSummary._
 import org.argus.amandroid.core.decompile.{DecompileLayout, DecompileStrategy, DecompilerSettings}
 import org.argus.amandroid.core.{AndroidGlobalConfig, ApkGlobal}
 import org.argus.jawa.core.util._
-import org.argus.jawa.core.{DefaultLibraryAPISummary, JawaClass, JawaMethod, Reporter}
+import org.argus.jawa.core._
 import writer.BaseGraphWriter
 
 abstract class BaseAppParser() {
@@ -25,8 +25,9 @@ abstract class BaseAppParser() {
     val applicationClasses = apk.getApplicationClasses
     val activities = apk.model.getActivities.map(a => a.jawaName)
 
+
     var components = applicationClasses.filter(k => {
-      k.hasSuperClass && k.getSuperClass.typ.jawaName == "android.app.Fragment"
+      apk.getClassHierarchy.getAllSuperClassesOf(k).exists(getClassesToFilter(apk).contains)
     })
 
     activities.foreach(activity => {
@@ -38,6 +39,12 @@ abstract class BaseAppParser() {
     })
 
     components
+  }
+
+  def getClassesToFilter(apk: ApkGlobal): Set[JawaClass] = {
+    val android_fragment_class = apk.getClassOrResolve(new JawaType("android.app.Fragment"))
+    val android_support_fragment_class = apk.getClassOrResolve(new JawaType("android.support.v4.app.Fragment"))
+    Set(android_fragment_class, android_support_fragment_class)
   }
 
   def collectMethods(apk: ApkGlobal, components: Set[JawaClass]): Set[JawaMethod] = {

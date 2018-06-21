@@ -26,19 +26,19 @@ fun main(args: Array<String>) {
                 File(basePathResult).mkdir()
             }
 
-            runArgus(it, basePathResult, mode)
 //            runFlowDroid()
+            runArgus(it, basePathResult, mode)
         }
     }
 
 
 }
 
-fun runFlowDroid(){
+fun runFlowDroid() {
     FlowDroid()
 }
 
-fun runArgus(app : File, basePathResult: String, mode : Mode){
+fun runArgus(app: File, basePathResult: String, mode: Mode) {
     try {
         Argus().run(app.toString(), basePathResult, mode.toString())
         if (File("./output").isDirectory) {
@@ -48,12 +48,12 @@ fun runArgus(app : File, basePathResult: String, mode : Mode){
         val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
         writer.append(app.toString() + "\r\n")
         writer.close()
-    } catch (e : IOException){
+    } catch (e: IOException) {
     } catch (e: Exception) {
         println(e.printStackTrace())
         println("Failed skipping.. $app")
         val errorFile = File("errors.txt")
-        val writer = PrintWriter(FileOutputStream(errorFile, true ))
+        val writer = PrintWriter(FileOutputStream(errorFile, true))
         writer.append("Failed skipping.. $app \r\n")
         e.printStackTrace(writer)
         writer.close()

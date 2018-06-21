@@ -10,9 +10,9 @@ class MethodWriter(writer: Writer) {
   def write(methods: Set[JawaMethod]): Unit = {
     writer.write("package,class,method\r\n")
     methods.foreach { method =>
-      val (packageName, methodName) = PackageNameUtils.separatePkgAndClassNames(method.declaringClass.getName)
-      println(s"${method.declaringClass.getName} methods ${methodName}")
-      val line = "%s,%s,%s\r\n".format(packageName,method.declaringClass.getName, methodName)
+      val (packageName, class_name) = PackageNameUtils.separatePkgAndClassNames(method.declaringClass.getName)
+      println(s"$class_name methods ${method.name}")
+      val line = "%s,%s,%s\r\n".format(packageName,method.declaringClass.getName, method.name)
       writer.write(line)
     }
     writer.close()

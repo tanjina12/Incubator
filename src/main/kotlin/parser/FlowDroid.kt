@@ -9,7 +9,7 @@ import soot.util.dot.DotGraph
 class FlowDroid {
 
     var locationProtoBuf: String = "./ic3/protobuf"
-    var locationApk: String = "./ic3/app-debug.apk"
+    var locationApk: String = "./apps/app-debug.apk"
 //    var locationApk: String = "./ic3/Pathe.apk"
 
     init {
@@ -23,8 +23,8 @@ class FlowDroid {
     fun Run(androidSdkPath: String, apk: String, IC3Model: String, packageName: String) {
         val app = SetupApplication(androidSdkPath, apk)
         app.config.isTaintAnalysisEnabled = false
-        app.config.mergeDexFiles = true
-        app.config.iccConfig.iccModel = IC3Model
+        app.config.mergeDexFiles = false
+//        app.config.iccConfig.iccModel = IC3Model
 
         app.constructCallgraph()
 
