@@ -5,24 +5,104 @@ import org.argus.amandroid.alir.componentSummary.ApkYard
 import org.argus.amandroid.alir.pta.model.AndroidModelCallHandler
 import org.argus.amandroid.alir.pta.reachingFactsAnalysis.IntentHelper
 import org.argus.amandroid.alir.pta.summaryBasedAnalysis.AndroidSummaryProvider
-import org.argus.amandroid.core.ApkGlobal
+import org.argus.amandroid.alir.taintAnalysis.AndroidSourceAndSinkManager
+import org.argus.amandroid.core.{AndroidConstants, AndroidGlobalConfig, ApkGlobal}
 import org.argus.amandroid.core.model.Intent
 import org.argus.amandroid.summary.wu.IntentWu
 import org.argus.jawa.alir.Context
 import org.argus.jawa.alir.pta.PTASlot
-import org.argus.jawa.alir.reachability.SignatureBasedCallGraph
-import org.argus.jawa.core.util.{IList, ISet, MSet, msetEmpty}
-import org.argus.jawa.core.{Global, Signature}
-import org.argus.jawa.summary.wu.{PTStore, PTSummary, WorkUnit}
+import org.argus.jawa.alir.reachability.{ReachabilityAnalysis, SignatureBasedCallGraph}
+import org.argus.jawa.alir.util.ExplicitValueFinder
+import org.argus.jawa.ast.{CallStatement, Location}
+import org.argus.jawa.core.util._
+import org.argus.jawa.core._
+import org.argus.jawa.summary.store.TaintStore
+import org.argus.jawa.summary.taint.BottomUpTaintAnalysis
+import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
 import writer.MethodWriter
 
+class LolManager(sasFilePath: String, iets: MSet[Signature]) extends AndroidSourceAndSinkManager(sasFilePath) {
+  private final val TITLE = "PasswordSourceAndSinkManager"
+
+  override def isUISource(apk: ApkGlobal, calleeSig: Signature, callerSig: Signature, callerLoc: Location): Boolean = {
+    if (calleeSig.signature == AndroidConstants.ACTIVITY_FINDVIEWBYID || calleeSig.signature == AndroidConstants.VIEW_FINDVIEWBYID
+      || calleeSig.signature == "Landroid/view/View;.setOnClickListener:(Landroid/view/View$OnClickListener;)V"
+      || callerSig.signature == "Lcom/example/sg10/testcgapp/MainActivity;.gotoScreenTwo:()V"
+      || apk.model.getCallbackMethods.contains(callerSig)) {
+
+      val calleeMethod = apk.getMethod(calleeSig).get
+
+      //Als we een setOnClickListener vinden. Dan moeten we in de graph kijken welke class dat initialiseerd aka MainActivity$1
+      //Alle intent methods in MainActivity$1 worden dus geactiveerd door die setOnClickListener
+
+      val callerMethod = apk.getMethod(callerSig).get
+      val cs = callerLoc.statement.asInstanceOf[CallStatement]
+      val nums = ExplicitValueFinder.findExplicitLiteralForArgs(callerMethod, callerLoc, cs.arg(0))
+      nums.filter(_.isInt).foreach { num =>
+        apk.model.getLayoutControls.get(num.getInt) match {
+          case Some(control) =>
+            //            return control.isSensitive
+            return true
+          case None =>
+            apk.reporter.error(TITLE, "Layout control with ID " + num + " not found.")
+        }
+      }
+    }
+    false
+  }
+}
+
 class BottomUpParser(store: PTStore) extends BaseAppParser {
+
+  var iets: MSet[Signature] = msetEmpty
 
   def writeMethods(writer: MethodWriter, apk: ApkGlobal) = {
     val components = collectComponents(apk)
     val methods = collectMethods(apk, components)
     writer.write(methods)
+  }
+
+  def parse2(apk: ApkGlobal, yard: ApkYard): Unit = {
+    val ssm = new LolManager(AndroidGlobalConfig.settings.sas_file, iets)
+    val reporter = new PrintReporter(MsgLevel.INFO)
+
+    val ta = new BottomUpTaintAnalysis[ApkGlobal](apk, new AndroidSummaryProvider(apk), new AndroidModelCallHandler, ssm, reporter)
+
+    val eps = apk.model.getEnvMap.map(_._2._1).toSet
+    val taintMap = ta.process(eps)
+    print()
+
+    val haha: MMap[Signature, MSet[Signature]] = mmapEmpty
+    iets.foreach(i => {
+      if (apk.model.getCallbackMethods.contains(i)) {
+        println("Found callback method in .... " + i.signature)
+      } else {
+        val t = apk.model.getCallbackMethods.map(x => x)
+        val cg = SignatureBasedCallGraph(apk, t)
+        t.foreach(s => {
+          val reachables = cg.getReachableMethods(Set(s))
+          if(reachables.contains(i)){
+            haha.getOrElseUpdate(i, msetEmpty) += s
+          }
+          println("d")
+        })
+        println("d")
+      }
+    })
+    print("")
+  }
+
+  def getReachableMethodsBySBCG(global: Global, typs: ISet[Signature]): Unit = {
+//    val lol = typs.map(typ => {
+//      global.getClazz(typ) match {
+//        case Some(c) => c.getDeclaredMethods.map(_.getSignature)
+//        case None => isetEmpty[Signature]
+//      }
+//    })
+
+    val cg = SignatureBasedCallGraph(global, typs)
+    println("")
   }
 
 
@@ -64,6 +144,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
           intent.componentNames.foreach(name => {
             println(context.getMethodSig.classTyp + " -ICC-> " + name + " by method " + context.getMethodSig.methodName)
             graph = graph :+ ((context.getMethodSig.classTyp.jawaName, name, context.getMethodSig.methodName))
+            iets.add(context.getMethodSig)
           })
         }
         if (intent.actions.nonEmpty) {
@@ -77,6 +158,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
                       if (u.equals(f)) {
                         println(context.getMethodSig.classTyp + " -ICC-Action-> " + f + " --> " + classType + " by method " + context.getMethodSig.methodName)
                         graph = graph :+ ((context.getMethodSig.classTyp.jawaName, classType.jawaName, context.getMethodSig.methodName + ";" + f))
+                        iets.add(context.getMethodSig)
                       }
                     })
                   }

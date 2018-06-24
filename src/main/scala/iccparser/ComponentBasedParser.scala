@@ -4,11 +4,17 @@ import java.util.concurrent.TimeUnit
 
 import org.argus.amandroid.alir.componentSummary.ComponentSummaryTable.CHANNELS
 import org.argus.amandroid.alir.componentSummary._
-import org.argus.amandroid.core.ApkGlobal
+import org.argus.amandroid.alir.taintAnalysis.AndroidSourceAndSinkManager
+import org.argus.amandroid.core.{AndroidConstants, AndroidGlobalConfig, ApkGlobal}
 import org.argus.jawa.alir.cfg.ICFGNode
+import org.argus.jawa.alir.util.ExplicitValueFinder
+import org.argus.jawa.ast.{CallStatement, Location}
+import org.argus.jawa.core.Signature
 import org.argus.jawa.core.util.{MSet, msetEmpty}
 
 import scala.concurrent.duration.FiniteDuration
+
+
 
 class ComponentBasedParser extends BaseAppParser {
 
@@ -17,7 +23,12 @@ class ComponentBasedParser extends BaseAppParser {
     val componentBasedAnalysis = new ComponentBasedAnalysis(yard)
     componentBasedAnalysis.phase1(Set(apk))
     val iddResult = componentBasedAnalysis.phase2(Set(apk))
+    print()
+    val ssm = new LolManager(AndroidGlobalConfig.settings.sas_file, msetEmpty)
+    val x = componentBasedAnalysis.phase3(iddResult, ssm)
+    print()
   }
+
 
   def collectIntents(apk: ApkGlobal): Unit = {
     val callees: MSet[IntentCallee] = msetEmpty
@@ -52,7 +63,7 @@ class ComponentBasedParser extends BaseAppParser {
     println()
     callers.foreach { case (node, intent) =>
       val comp = intent.component
-//      val compType = intent.compTyp
+      //      val compType = intent.compTyp
       if (intent.intent.componentNames.nonEmpty) {
         intent.intent.componentNames.foreach(name => {
           println(comp + " -ICC-> " + name + " by method " + node.getOwner.methodName)

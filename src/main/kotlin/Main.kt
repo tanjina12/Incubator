@@ -2,12 +2,11 @@ import com.natpryce.konfig.ConfigurationProperties
 import config.Mode
 import java.io.File
 import config.incubator
-import org.apache.commons.io.FileUtils
+import org.apache.commons.brut.io.FileUtils
 import parser.FlowDroid
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.PrintWriter
-
 
 fun main(args: Array<String>) {
     println("Starting incubator")
@@ -45,9 +44,9 @@ fun runArgus(app: File, basePathResult: String, mode: Mode) {
             FileUtils.deleteDirectory(File("./output"))
         }
 
-        val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
-        writer.append(app.toString() + "\r\n")
-        writer.close()
+//        val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
+//        writer.append(app.toString() + "\r\n")
+//        writer.close()
     } catch (e: IOException) {
     } catch (e: Exception) {
         println(e.printStackTrace())

@@ -1,10 +1,11 @@
 package parser
 
 import soot.Scene
+import soot.jimple.infoflow.android.InfoflowAndroidConfiguration
 import soot.jimple.infoflow.android.SetupApplication
+import soot.jimple.infoflow.android.callbacks.FastCallbackAnalyzer
 import soot.jimple.infoflow.android.manifest.ProcessManifest
 import soot.jimple.toolkits.callgraph.CallGraph
-import soot.util.dot.DotGraph
 
 class FlowDroid {
 
@@ -30,7 +31,10 @@ class FlowDroid {
 
         val callGraph = Scene.v().callGraph
 
-        printActivityOnly(callGraph, packageName)
+        val l = FastCallbackAnalyzer(InfoflowAndroidConfiguration(), app.entrypointClasses)
+        l.collectCallbackMethods()
+        print("")
+//        printActivityOnly(callGraph, packageName)
     }
 
     fun printFullTree(cg: CallGraph, packageName: String) {

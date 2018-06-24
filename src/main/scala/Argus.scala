@@ -23,7 +23,7 @@ class Argus {
     val yard = new ApkYard(reporter)
     val store: PTStore = new PTStore
     val parser = new BottomUpParser(store)
-    //    val parser = new ComponentBasedParser
+//    val parser = new ComponentBasedParser
 
     println("Load apk")
     val apk = parser.loadApk(apkLocation, yard, reporter)
@@ -37,6 +37,10 @@ class Argus {
     parser.collectIntents(apk)
     printEstimatedTimeElapsed(startTime)
 
+
+    parser.parse2(apk, yard)
+
+
     println("Write graph to file")
     val csvWriter: CsvGraphWriter = new CsvGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}.csv"))
     val xmlWriter: XmlGraphWriter = new XmlGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}.xml"))
@@ -48,8 +52,8 @@ class Argus {
     parser.writeGraph(writers, apk)
     printEstimatedTimeElapsed(startTime)
 
-    parser.writeMethods(methodWriter, apk)
-    printEstimatedTimeElapsed(startTime)
+//    parser.writeMethods(methodWriter, apk)
+//    printEstimatedTimeElapsed(startTime)
 
     println(s"Finished analysis for ${apk.model.getPackageName}")
   }
