@@ -24,7 +24,7 @@ class ComponentBasedParser extends BaseAppParser {
     componentBasedAnalysis.phase1(Set(apk))
     val iddResult = componentBasedAnalysis.phase2(Set(apk))
     print()
-    val ssm = new LolManager(AndroidGlobalConfig.settings.sas_file, msetEmpty)
+    val ssm = new WidgetAndCallBackManager(AndroidGlobalConfig.settings.sas_file)
     val x = componentBasedAnalysis.phase3(iddResult, ssm)
     print()
   }

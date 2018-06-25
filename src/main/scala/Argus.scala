@@ -38,6 +38,9 @@ class Argus {
     printEstimatedTimeElapsed(startTime)
 
 
+    parser.collectTypes(apk, reporter)
+
+
     println("Write graph to file")
     val csvWriter: CsvGraphWriter = new CsvGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}.csv"))
     val xmlWriter: XmlGraphWriter = new XmlGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}.xml"))

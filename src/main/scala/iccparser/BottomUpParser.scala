@@ -8,63 +8,65 @@ import org.argus.amandroid.alir.pta.reachingFactsAnalysis.IntentHelper
 import org.argus.amandroid.alir.pta.summaryBasedAnalysis.AndroidSummaryProvider
 import org.argus.amandroid.alir.taintAnalysis.AndroidSourceAndSinkManager
 import org.argus.amandroid.core.appInfo.AppInfoCollector
-import org.argus.amandroid.core.{AndroidConstants, AndroidGlobalConfig, ApkGlobal}
 import org.argus.amandroid.core.model.Intent
+import org.argus.amandroid.core.{AndroidGlobalConfig, ApkGlobal}
 import org.argus.amandroid.summary.wu.IntentWu
+import org.argus.jawa.alir.Context
 import org.argus.jawa.alir.cg.CallGraph
-import org.argus.jawa.alir.{Context, JawaAlirInfoProvider}
 import org.argus.jawa.alir.pta.PTASlot
-import org.argus.jawa.alir.reachability.{ReachabilityAnalysis, SignatureBasedCallGraph}
-import org.argus.jawa.alir.util.ExplicitValueFinder
-import org.argus.jawa.ast.{CallStatement, Location}
-import org.argus.jawa.core.util._
+import org.argus.jawa.alir.reachability.SignatureBasedCallGraph
+import org.argus.jawa.ast.{AssignmentStatement, CallStatement, Location}
 import org.argus.jawa.core._
-import org.argus.jawa.summary.store.TaintStore
+import org.argus.jawa.core.util._
 import org.argus.jawa.summary.taint.BottomUpTaintAnalysis
 import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
 import writer.MethodWriter
 
-class LolManager(sasFilePath: String) extends AndroidSourceAndSinkManager(sasFilePath) {
-  private final val TITLE = "PasswordSourceAndSinkManager"
+class WidgetAndCallBackManager(sasFilePath: String) extends AndroidSourceAndSinkManager(sasFilePath) {
+  private final val TITLE = "WidgetAndCallBackManager"
   val callbackClasses: MMap[JawaClass, Location] = mmapEmpty
   val androidCallBacks = new AndroidCallBacks().initAndroidCallbacks
 
   override def isUISource(apk: ApkGlobal, calleeSig: Signature, callerSig: Signature, callerLoc: Location): Boolean = {
-    val paramss = calleeSig.getParameterTypes.map(x => x.name)
-    if (paramss.exists(androidCallBacks.contains)) {
+    val params = calleeSig.getParameterTypes.map(x => x.name)
+    if (params.exists(androidCallBacks.contains)) {
 
-      val param = calleeSig.getParameterTypes.head
+      calleeSig.getParameterTypes.foreach(param => {
+        val typRecOpt = apk.getClazz(param)
+        val callbackClasses: MSet[JawaClass] = msetEmpty
 
-      val typRecOpt = apk.getClazz(param)
-      val callbackClasses: MSet[JawaClass] = msetEmpty
-
-      typRecOpt match {
-        case Some(typRec) =>
-          val hier = apk.getClassHierarchy
-          if (typRec.isInterface) {
-            val impls = hier.getAllImplementersOf(typRec)
-            if (impls.nonEmpty) {
-              callbackClasses ++= impls.map { impl =>
-                hier.getAllSubClassesOfIncluding(impl)
-              }.reduce(iunion[JawaClass])
+        typRecOpt match {
+          case Some(typRec) =>
+            val hier = apk.getClassHierarchy
+            if (typRec.isInterface) {
+              val impls = hier.getAllImplementersOf(typRec)
+              if (impls.nonEmpty) {
+                callbackClasses ++= impls.map { impl =>
+                  hier.getAllSubClassesOfIncluding(impl)
+                }.reduce(iunion[JawaClass])
+              }
+            } else {
+              callbackClasses ++= hier.getAllSubClassesOfIncluding(typRec)
             }
-          } else {
-            callbackClasses ++= hier.getAllSubClassesOfIncluding(typRec)
-          }
-        case None =>
-      }
+          case None =>
+        }
 
-      this.callbackClasses ++= callbackClasses.map(x => x -> callerLoc)
-      return true
+        //analyzeClass -< moet hier komnen
+
+        this.callbackClasses ++= callbackClasses.map(x => x -> callerLoc)
+        return true
+      })
     }
-    return false
+    false
   }
 }
 
 class BottomUpParser(store: PTStore) extends BaseAppParser {
 
-  var iets: MSet[Signature] = msetEmpty
+  var iccMethods: MSet[Signature] = msetEmpty
+  val ssm = new WidgetAndCallBackManager(AndroidGlobalConfig.settings.sas_file)
+  var callGraph: CallGraph = new CallGraph()
 
   def writeMethods(writer: MethodWriter, apk: ApkGlobal) = {
     val components = collectComponents(apk)
@@ -73,55 +75,90 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
   }
 
   def parse2(apk: ApkGlobal, yard: ApkYard, callGraph: CallGraph): Unit = {
-    val ssm = new LolManager(AndroidGlobalConfig.settings.sas_file)
     val reporter = new PrintReporter(MsgLevel.INFO)
     val ta = new BottomUpTaintAnalysis[ApkGlobal](apk, new AndroidSummaryProvider(apk), new AndroidModelCallHandler, ssm, reporter)
     val eps = apk.model.getEnvMap.map(_._2._1).toSet
     ta.process(eps)
-    asdfsdf(apk, ssm)
   }
 
-  def asdfsdf(apk: ApkGlobal, ssm: LolManager): Unit = {
-    val haha: MMap[Signature, MSet[Signature]] = mmapEmpty
-    val callBackMethods = apk.model.getCallbackMethods
-    callBackMethods.foreach(x => {
+  def collectTypes(apk: ApkGlobal, reporter: Reporter): Unit = {
+    println("Finding widgets...")
+    val indirectCallGraph: MMap[Signature, MSet[Signature]] = mmapEmpty
+    val callbackMethodAndWidgetId = AppInfoCollector.layoutIdWithCallBackMethods
+    val callbackMethodAndWidgetLoc = ssm.callbackClasses
+    val callbackMethodAndWidget: MMap[String, MSet[Signature]] = mmapEmpty
 
+    callbackMethodAndWidgetId.foreach(x => {
+      val widget = apk.model.getLayoutControls.get(x._1) match {
+        case Some(l) => l.viewClass.jawaName
+        case None =>
+          x._2.foreach(cb => {
+            reporter.error("CollectWidgets", "Could not find suitable widget for ID: " + x._1 + " and callbackmethod " + cb.methodName)
+          })
+          "Unknown"
+      }
+      callbackMethodAndWidget.getOrElseUpdate(widget, msetEmpty) ++= x._2
     })
 
-    AppInfoCollector.test
+    callbackMethodAndWidgetLoc.foreach(x => {
+      val widget = x._2.statement match {
+        case cs: CallStatement =>
+          cs.signature.classTyp.jawaName
+        case as: AssignmentStatement =>
+          println("sadfasdfsafsaf")
+          "Unknown"
+      }
+      val methods = x._1.getDeclaredMethods.map(x => x.getSignature)
+      callbackMethodAndWidget.getOrElseUpdate(widget, msetEmpty) ++= methods
+    })
+    println()
 
-//    val cg = SignatureBasedCallGraph(apk, t)
-//    apk.model.getCallbackMethods.foreach(x => {
-//
-//    })
-//
-//
-//    iets.foreach(i => {
-//      if (apk.model.getCallbackMethods.contains(i)) {
-//        println("Found callback method in .... " + i.signature)
-//      } else {
-//
-//        t.foreach(s => {
-//          val reachables = cg.getReachableMethods(Set(s))
-//          if (reachables.contains(i)) {
-//            haha.getOrElseUpdate(i, msetEmpty) += s
-//          }
-//        })
-//      }
-//    })
-//
-//    val cbt = ssm.callbackClasses
-//    haha.foreach(s => {
-//      s._2.foreach(l => {
-//        val l1 = apk.getMethodOrResolve(l).get
-//        cbt.foreach(a => {
-//          if (a._1.getMethods.contains(l1)) {
-//            println("Found --------> " + s._1.methodName + " called by " + l.methodName + " with listener " + a._2)
-//            println()
-//          }
-//        })
-//      })
-//    })
+
+    iccMethods.foreach(m => {
+      if (!apk.model.getCallbackMethods.contains(m)) {
+        apk.model.getCallbackMethods.foreach(s => {
+          val reachables = callGraph.getReachableMethods(Set(s))
+          if (reachables.contains(m)) {
+            indirectCallGraph.getOrElseUpdate(m, msetEmpty) += s
+          }
+        })
+      }
+    })
+
+    iccMethods.foreach(m => {
+      val allWidgets = callbackMethodAndWidget.values.flatten.toSet
+      if (allWidgets.contains(m)) {
+        val widgets = callbackMethodAndWidget.filter(x => x._2.contains(m))
+        widgets.foreach(widget => {
+          println("-1- Method " + m + " called by " + widget._1)
+        })
+      }
+      //      else {
+      //        haha.get(m) match {
+      //          case Some(methods) =>
+      //            methods.foreach(i => {
+      //              val widgets = callbackMethodAndWidget.filter(j => j._2.contains(i))
+      //              widgets.foreach(widget => {
+      //                println("-2- Method " + m + " called by " + widget._1)
+      //              })
+      //            })
+      //          case None => println("huh")
+      //        }
+      //      }
+    })
+
+    indirectCallGraph.foreach(m => {
+      val allWidgets = callbackMethodAndWidget.values.flatten.toSet
+      if (allWidgets.exists(m._2.contains)) {
+        m._2.foreach(i => {
+          val widgets = callbackMethodAndWidget.filter(j => j._2.contains(i))
+          widgets.foreach(widget => {
+            println("-2- Method " + m._1 + " called by " + widget._1)
+          })
+        })
+      }
+    })
+
   }
 
   def parse(apk: ApkGlobal, yard: ApkYard): Unit = {
@@ -129,7 +166,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val sm: SummaryManager = new AndroidSummaryProvider(apk).getSummaryManager
     val analysis = new BottomUpSummaryGenerator[Global](apk, sm, handler, PTSummary(_, _), ConsoleProgressBar.on(System.out).withFormat("[:bar] :percent% :elapsed Left: :remain"))
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
-    val callGraph = SignatureBasedCallGraph(apk, signatures, None)
+    callGraph = SignatureBasedCallGraph(apk, signatures, None)
 
     val orderedWUs: IList[WorkUnit[Global]] = callGraph.topologicalSort(true).map { sig =>
       val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
@@ -164,7 +201,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
           intent.componentNames.foreach(name => {
             println(context.getMethodSig.classTyp + " -ICC-> " + name + " by method " + context.getMethodSig.methodName)
             graph = graph :+ ((context.getMethodSig.classTyp.jawaName, name, context.getMethodSig.methodName))
-            iets.add(context.getMethodSig)
+            iccMethods.add(context.getMethodSig)
           })
         }
         if (intent.actions.nonEmpty) {
@@ -178,7 +215,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
                       if (u.equals(f)) {
                         println(context.getMethodSig.classTyp + " -ICC-Action-> " + f + " --> " + classType + " by method " + context.getMethodSig.methodName)
                         graph = graph :+ ((context.getMethodSig.classTyp.jawaName, classType.jawaName, context.getMethodSig.methodName + ";" + f))
-                        iets.add(context.getMethodSig)
+                        iccMethods.add(context.getMethodSig)
                       }
                     })
                   }
