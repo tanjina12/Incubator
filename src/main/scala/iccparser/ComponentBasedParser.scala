@@ -9,7 +9,7 @@ import org.argus.amandroid.core.{AndroidConstants, AndroidGlobalConfig, ApkGloba
 import org.argus.jawa.alir.cfg.ICFGNode
 import org.argus.jawa.alir.util.ExplicitValueFinder
 import org.argus.jawa.ast.{CallStatement, Location}
-import org.argus.jawa.core.Signature
+import org.argus.jawa.core.{MsgLevel, PrintReporter, Signature}
 import org.argus.jawa.core.util.{MSet, msetEmpty}
 
 import scala.concurrent.duration.FiniteDuration
@@ -24,8 +24,8 @@ class ComponentBasedParser extends BaseAppParser {
     componentBasedAnalysis.phase1(Set(apk))
     val iddResult = componentBasedAnalysis.phase2(Set(apk))
     print()
-    val ssm = new WidgetAndCallBackManager(AndroidGlobalConfig.settings.sas_file)
-    val x = componentBasedAnalysis.phase3(iddResult, ssm)
+//    val ssm = new WidgetAndCallBackManager(reporter = new PrintReporter(MsgLevel.ERROR))
+//    val x = componentBasedAnalysis.phase3(iddResult, ssm)
     print()
   }
 
