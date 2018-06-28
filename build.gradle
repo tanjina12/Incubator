@@ -43,10 +43,6 @@ dependencies {
     compile files('libs/sootclasses-trunk-jar-with-dependencies.jar')
     compile files('libs/soot-infoflow-android-classes.jar')
     compile files('libs/soot-infoflow-classes.jar')
-    //FlowDroid
-    compile files('libs/soot-3.1.0-jar-with-dependencies.jar')
-    compile files('libs/soot-infoflow-android-classes.jar')
-    compile files('libs/soot-infoflow-classes.jar')
     compile group: 'com.google.protobuf', name: 'protobuf-java', version: '3.5.1'
 
 }

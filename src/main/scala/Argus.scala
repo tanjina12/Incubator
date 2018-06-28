@@ -38,7 +38,7 @@ class Argus {
     printEstimatedTimeElapsed(startTime)
 
 
-    parser.collectTypes(apk, reporter)
+    parser.bindWidgetsToIccMethods(apk, reporter)
 
 
     println("Write graph to file")

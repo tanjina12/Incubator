@@ -23,10 +23,6 @@ class ComponentBasedParser extends BaseAppParser {
     val componentBasedAnalysis = new ComponentBasedAnalysis(yard)
     componentBasedAnalysis.phase1(Set(apk))
     val iddResult = componentBasedAnalysis.phase2(Set(apk))
-    print()
-//    val ssm = new WidgetAndCallBackManager(reporter = new PrintReporter(MsgLevel.ERROR))
-//    val x = componentBasedAnalysis.phase3(iddResult, ssm)
-    print()
   }
 
 
@@ -67,7 +63,7 @@ class ComponentBasedParser extends BaseAppParser {
       if (intent.intent.componentNames.nonEmpty) {
         intent.intent.componentNames.foreach(name => {
           println(comp + " -ICC-> " + name + " by method " + node.getOwner.methodName)
-          graph = graph :+ ((comp.typ.jawaName, name, node.getOwner.methodName))
+          graph.getOrElseUpdate((comp.typ.jawaName, name, node.getOwner.methodName), msetEmpty)
         })
       }
       if (intent.intent.actions.nonEmpty) {
@@ -76,7 +72,7 @@ class ComponentBasedParser extends BaseAppParser {
             callee.filter.foreach(filter => {
               if (filter.getActions.contains(action)) {
                 println(comp + " -ICC-Action-> " + action + " --> " + callee.component + " by method " + node.getOwner.methodName)
-                graph = graph :+ ((comp.typ.jawaName, callee.component.typ.jawaName, node.getOwner.methodName))
+                graph.getOrElseUpdate((comp.typ.jawaName, callee.component.typ.jawaName, node.getOwner.methodName), msetEmpty)
               }
             })
           })

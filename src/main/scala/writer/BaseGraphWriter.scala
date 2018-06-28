@@ -1,6 +1,8 @@
 package writer
 
+import org.argus.jawa.core.util.{MMap, MSet}
+
 trait BaseGraphWriter {
   val lineSeparator = "\r\n"
-  def write(graph: List[(String, String, String)], packageName : String)
+  def write(graph: MMap[(String, String, String), MSet[String]], packageName : String)
 }

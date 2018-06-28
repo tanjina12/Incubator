@@ -2,14 +2,18 @@ package writer
 
 import java.io.Writer
 
+import org.argus.jawa.core.util.{MMap, MSet}
+
 
 class CsvGraphWriter(writer: Writer) extends BaseGraphWriter {
-  override def write(graph: List[(String, String, String)], packageName: String): Unit = {
-    writer.write(s"package,source,target,method$lineSeparator")
+  override def write(graph: MMap[(String, String, String), MSet[String]], packageName: String): Unit = {
+    writer.write(s"package,source,target,method,widget$lineSeparator")
     graph.foreach {
-      case (source, target, method) =>
-        val line: String = s"$packageName,$source,$target,$method$lineSeparator"
-        writer.write(line)
+      case ((source, target, method), widgets) =>
+        widgets.foreach(widget =>{
+          val line: String = s"$packageName,$source,$target,$method,$widget$lineSeparator"
+          writer.write(line)
+        })
     }
     writer.close()
   }

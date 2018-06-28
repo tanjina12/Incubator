@@ -10,7 +10,7 @@ import writer.BaseGraphWriter
 abstract class BaseAppParser() {
 
   val lineSeparator = "\r\n"
-  var graph: List[(String, String, String)] = List()
+  var graph: MMap[(String, String, String), MSet[String]] = mmapEmpty
 
   def loadApk(apkLocation: String, yard: ApkYard, reporter: Reporter): ApkGlobal = {
     val apkUri = FileUtil.toUri(apkLocation)
@@ -57,7 +57,18 @@ abstract class BaseAppParser() {
   }
 
   def writeGraph(writers: Set[BaseGraphWriter], apk: ApkGlobal): Unit = {
+    preProcess()
     writers.foreach(w => w.write(graph, apk.model.getPackageName))
+  }
+
+  def preProcess(): Unit = {
+    graph.foreach {
+      case (k, v) => {
+        if (v.isEmpty) {
+          graph.getOrElseUpdate(k, msetEmpty) += ""
+        }
+      }
+    }
   }
 
   def parse(apk: ApkGlobal, yard: ApkYard)
