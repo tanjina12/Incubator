@@ -52,8 +52,8 @@ class Argus {
     parser.writeGraph(writers, apk)
     printEstimatedTimeElapsed(startTime)
 
-//    parser.writeMethods(methodWriter, apk)
-//    printEstimatedTimeElapsed(startTime)
+    parser.writeMethods(methodWriter, apk)
+    printEstimatedTimeElapsed(startTime)
 
     println(s"Finished analysis for ${apk.model.getPackageName}")
   }
