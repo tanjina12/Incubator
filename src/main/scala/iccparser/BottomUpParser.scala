@@ -19,6 +19,7 @@ import org.argus.jawa.core._
 import org.argus.jawa.core.util.{MSet, _}
 import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
+import polyglot.types.ClassType
 import writer.MethodWriter
 
 
@@ -38,13 +39,12 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
 
 
   def collectCallbackWidgetsFromLoc(apk: ApkGlobal, reporter: Reporter): Unit = {
-    val cg = callGraph
     val androidCallBacks = new AndroidCallBacks().initAndroidCallbacks
 
     //Original method onCreate, inits class $1(jawatype) via Listeners(loc)
     val ClassInitByLoc: MMap[(Signature, JawaType), MSet[Location]] = mmapEmpty
 
-    cg.getCallMap.foreach(x => {
+    callGraph.getCallMap.foreach(x => {
       x._2.foreach(j => {
         if (j.getParameterTypes.exists(i => androidCallBacks.contains(i.baseTyp))) {
 
@@ -57,16 +57,18 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
 
           interfaceLocations.foreach(i => {
             val initIndex = i.locationIndex - 1
-            val locationInitMethod = methodBody.location(initIndex)
-            locationInitMethod.statement match {
-              case cs: CallStatement =>
-                if (cs.signature.methodName == "<init>") {
-                  ClassInitByLoc.getOrElseUpdate((x._1, cs.signature.getClassType), msetEmpty) += i
-                  //                  reporter.println("Method " + x._1 + " listener " + j.methodName + " inits " + cs.signature.getClassName)
-                } else {
-                  ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
-                }
-              case _ => ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
+            if (initIndex >= 0) {
+              val locationInitMethod = methodBody.location(initIndex)
+              locationInitMethod.statement match {
+                case cs: CallStatement =>
+                  if (cs.signature.methodName == "<init>") {
+                    ClassInitByLoc.getOrElseUpdate((x._1, cs.signature.getClassType), msetEmpty) += i
+                    //                  reporter.println("Method " + x._1 + " listener " + j.methodName + " inits " + cs.signature.getClassName)
+                  } else {
+                    ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
+                  }
+                case _ => ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
+              }
             }
           })
         }
@@ -178,6 +180,71 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
         reporter.error("BindingWidgets", "No widget found for iccMethod " + iccMethod._1)
       }
     })
+
+    println()
+  }
+
+  def okeoke(apk: ApkGlobal): Unit = {
+
+    val iccClasses = iccMethods.keySet.map(x => x.classTyp)
+
+    val entryPoints = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
+    entryPoints.foreach(entryPoint => {
+      //all methods
+      val m = apk.getMethod(entryPoint).get
+
+
+      val reachableMethods = callGraph.getReachableMethods(Set(m.getSignature))
+      val reachableClasses = reachableMethods.groupBy(x => x.classTyp).filter(x => x._1 != m.getDeclaringClass.getType)
+
+      //reachable contains one of the icc methods
+      if (reachableClasses.keySet.exists(iccClasses.contains)) {
+        val lp1 = reachableClasses.filter(x => iccClasses.contains(x._1))
+        //Found alternative way of reaching icc class
+        lp1.foreach(ok => {
+          val iccClass = apk.getClazz(ok._1).get
+          if(!iccClass.isInnerClass){
+            println("class" + m.getDeclaringClass.getType.jawaName + "--direct INIT-->" + ok._1.jawaName + " method " + m.getSignature)
+          }
+        })
+
+      } else {
+        iccClasses.foreach(j => {
+          val iccClass = apk.getClazz(j).get
+
+          // more detailed
+          //            reachableClasses.foreach(x => {
+          //              x._2.foreach(s => {
+          //
+          //                val mm = apk.getMethod(s).get
+          //                if(mm.isConstructor && mm.getDeclaringClass.isApplicationClass){
+          //                  var lifeCycleMethods = mm.getDeclaringClass.getDeclaredMethods.filter(x => x.isOverride && x.isConstructor).groupBy(x => x.getDeclaringClass.getType)
+          //                  if(lifeCycleMethods.keySet.exists(iccClasses.contains)){
+          //                    println()
+          //                  }
+          //                }
+          //              })
+          //            })
+
+
+          if (iccClass.isInnerClass) {
+            if (reachableClasses.keySet.contains(iccClass.getOuterType.get)) {
+              val lp = reachableClasses.filter(x => x._1 == iccClass.getOuterType.get)
+              // the parent class is init by
+
+              lp.foreach(ok => {
+                println("class" + m.getDeclaringClass.getType.jawaName + "--INIT-->" + ok._1.jawaName + " method " + m.getSignature)
+              })
+            }
+          }
+        })
+      }
+    })
+    println()
+  }
+
+  def recursiveLifeCycleMethods(constructor: JawaMethod, cls: ClassType): Unit = {
+
   }
 
   def addWidget(graph: (String, String, String), widget: String): Unit = {
@@ -245,6 +312,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
           })
         }
     }
+    okeoke(apk)
   }
 
   def printWidget(callbackMethodAndWidget: MMap[Signature, MSet[JawaType]], reporter: Reporter): Unit = {
@@ -309,25 +377,4 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     })
     reporter.println("++++++++++ Finished")
   }
-
-  //  def collectNonICCLinks(apk: ApkGlobal, callbackMethodAndWidget: MMap[Signature, MSet[JawaType]]): Unit = {
-  //    var callbackMethods = apk.model.getCallbackMethods
-  //    callbackMethods ++= callbackMethodAndWidget.keySet.diff(callbackMethods)
-  //
-  //    callbackMethods.foreach(method => {
-  //      val reachables = callGraph.getReachableMethods(Set(method))
-  //      val lol = method.classTyp
-  //      val lol1 = reachables.map(x => x.classTyp)
-  //      if (reachables.exists(a => a.classTyp != method.classTyp)) {
-  //        val otherClassMethods = reachables.filter(a => a.classTyp != method.classTyp)
-  //        if (otherClassMethods.exists(iccMethods.contains)) {
-  //          val icc = otherClassMethods.intersect(iccMethods)
-  //          icc.foreach(i => {
-  //            println("Jackpot " + method+ " calls " + i)
-  //          })
-  //        }
-  //      }
-  //    })
-  //    println()
-  //  }
 }

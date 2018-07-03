@@ -235,5 +235,8 @@ class AndroidCallBacks {
     // nfc
     this.androidCallbacks += "android.nfc.NfcAdapter$CreateNdefMessageCallback"
     this.androidCallbacks += "android.nfc.NfcAdapter$OnNdefPushCompleteCallback"
+
+    // recyclerview
+    this.androidCallbacks += "android.support.v7.widget.RecyclerView$Adapter"
   }
 }
