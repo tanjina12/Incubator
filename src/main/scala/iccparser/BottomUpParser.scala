@@ -17,7 +17,6 @@ import org.argus.jawa.core._
 import org.argus.jawa.core.util.{MSet, _}
 import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
-import soot.jimple.infoflow.android.source.AndroidSourceSinkManager.SourceType
 import writer.MethodWriter
 
 
@@ -29,7 +28,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
 
   // Source, Target, Method - Widgets
 
-  def writeMethods(writer: MethodWriter, apk: ApkGlobal) = {
+  def writeMethods(writer: MethodWriter, apk: ApkGlobal): Unit = {
     val components = collectComponents(apk)
     val methods = collectMethods(apk, components)
     writer.write(methods)
@@ -76,13 +75,22 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val analysis = new BottomUpSummaryGenerator[Global](apk, sm, handler, PTSummary(_, _), ConsoleProgressBar.on(System.out).withFormat("[:bar] :percent% :elapsed Left: :remain"))
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
     callGraph = SignatureBasedCallGraph(apk, apk.getApplicationClasses.flatMap(x => x.getDeclaredMethods).map(x => x.getSignature), None)
+    //    val cg = SignatureBasedCallGraph(apk, apk.model.getComponentInfos.flatMap(apk.getEntryPoints), None)
 
-    val orderedWUs: IList[WorkUnit[Global]] = callGraph.topologicalSort(true).map { sig =>
-      val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
-      new IntentWu(apk, method, sm, handler, store, "intent")
+    val orderedWUs: IList[Option[IntentWu]] = callGraph.topologicalSort(true).map { sig =>
+      //      val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
+      //      new IntentWu(apk, method, sm, handler, store, "intent")
+
+      apk.getMethodOrResolve(sig) match {
+        case Some(method) => Some(new IntentWu(apk, method, sm, handler, store, "intent"))
+        case None =>
+          println("Removing from intent collection")
+          println("Method " + sig)
+          None
+      }
     }
 
-    analysis.build(orderedWUs)
+    analysis.build(orderedWUs.flatten)
   }
 
   def collectIntents(apk: ApkGlobal): Unit = {
@@ -153,7 +161,6 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val iccClasses = iccMethods.keySet.map(x => x.classTyp)
 
     val entryPoints = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
-
 
 
     entryPoints.foreach(entryPoint => {

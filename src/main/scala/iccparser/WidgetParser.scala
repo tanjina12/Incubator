@@ -18,40 +18,49 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
     //Original method onCreate, inits class $1(jawatype) via Listeners(loc)
     val ClassInitByLoc: MMap[(Signature, JawaType), MSet[Location]] = mmapEmpty
 
+    print("looping over all callgraph " + callGraph.getCallMap.size)
+
+    val test = callGraph.getCallMap.filter(x => x._2.exists(i => i.getParameterTypes.exists(j => androidCallBacks.contains(j.baseTyp))))
+
     callGraph.getCallMap.foreach(x => {
+      print(".")
       x._2.foreach(j => {
         if (j.getParameterTypes.exists(i => androidCallBacks.contains(i.baseTyp))) {
 
-          val methodBody = apk.getMethodOrResolve(x._1).get.getBody.resolvedBody
+          apk.getMethod(x._1) match {
+            case Some(m) =>
+              val methodBody = m.getBody.resolvedBody
 
-          val interfaceLocations = methodBody.locations.filter(_.statement match {
-            case cs: CallStatement => cs.signature.methodName == j.methodName
-            case _ => false
-          })
+              val interfaceLocations = methodBody.locations.filter(_.statement match {
+                case cs: CallStatement => cs.signature.methodName == j.methodName
+                case _ => false
+              })
 
-          interfaceLocations.foreach(i => {
-            val initIndex = i.locationIndex - 1
-            if (initIndex >= 0) {
-              val locationInitMethod = methodBody.location(initIndex)
-              locationInitMethod.statement match {
-                case cs: CallStatement =>
-                  if (cs.signature.methodName == "<init>") {
-                    ClassInitByLoc.getOrElseUpdate((x._1, cs.signature.getClassType), msetEmpty) += i
-                    //                  reporter.println("Method " + x._1 + " listener " + j.methodName + " inits " + cs.signature.getClassName)
-                  } else {
-                    ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
+              interfaceLocations.foreach(i => {
+                val initIndex = i.locationIndex - 1
+                if (initIndex >= 0) {
+                  val locationInitMethod = methodBody.location(initIndex)
+                  locationInitMethod.statement match {
+                    case cs: CallStatement =>
+                      if (cs.signature.methodName == "<init>") {
+                        ClassInitByLoc.getOrElseUpdate((x._1, cs.signature.getClassType), msetEmpty) += i
+                        //                  reporter.println("Method " + x._1 + " listener " + j.methodName + " inits " + cs.signature.getClassName)
+                      } else {
+                        ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
+                      }
+                    case _ => ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
                   }
-                case _ => ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
-              }
-            }else{
-              println()
-            }
-          })
+                }
+              })
+            case None =>
+              reporter.error("Findinglocs", "This should not happen method not found in cache. For now ignoring: ")
+              reporter.error("Findinglocs", "method: " + x._1)
+          }
         }
       })
     })
 
-
+    println()
     ssm.collectWidgetsForInitListener(apk, ClassInitByLoc)
   }
 
@@ -64,6 +73,7 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
 
     reporter.println("Collect widgets from loc")
     collectCallbackWidgetsFromLoc(apk, reporter)
+    reporter.println("collect widgets loc done")
     val callbackMethodAndWidgetLoc = ssm.callBackMethods
 
     val callbackMethodAndWidget: MMap[Signature, MSet[JawaType]] = mmapEmpty
@@ -98,7 +108,8 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
       }
     })
 
-
+    reporter.println("Finished collecting widgets")
+    reporter.println("Find all reachable")
     iccMethods.foreach(m => {
       var callbackMethods = apk.model.getCallbackMethods
       callbackMethods ++= callbackMethodAndWidget.keySet.diff(callbackMethods)
@@ -128,7 +139,7 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
     //    printIntentsWidget(callbackMethodAndWidget, reporter)
     //    printWidget(callbackMethodAndWidget, reporter)
 
-
+    reporter.println("Binding methods with widgets..")
     iccMethods.foreach(iccMethod => {
       if (callbackMethodAndWidget.contains(iccMethod._1)) {
         val widgets = callbackMethodAndWidget(iccMethod._1)
