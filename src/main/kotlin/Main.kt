@@ -12,8 +12,9 @@ fun main(args: Array<String>) {
     println("Starting incubator")
     val config = ConfigurationProperties.fromFile(File("incubator.properties"))
     val basePathResult = config[incubator.output]
-    val mode = config[incubator.mode]
+//    val mode = config[incubator.mode]
     val ignoreAppsFile = config[incubator.ignoreApps]
+//    val parseInnerClassToOuterClass = config[incubator.parseInnerClassAdOuterClass]
 
     val ignoreApps = File(ignoreAppsFile).readLines().toSet()
 
@@ -26,7 +27,7 @@ fun main(args: Array<String>) {
             }
 
 //            runFlowDroid()
-            runArgus(it, basePathResult, mode)
+            runArgus(it, basePathResult)
         }
     }
 
@@ -37,16 +38,16 @@ fun runFlowDroid() {
     FlowDroid()
 }
 
-fun runArgus(app: File, basePathResult: String, mode: Mode) {
+fun runArgus(app: File, basePathResult: String) {
     try {
-        Argus().run(app.toString(), basePathResult, mode.toString())
+        Argus().run(app.toString(), basePathResult)
         if (File("./output").isDirectory) {
             FileUtils.deleteDirectory(File("./output"))
         }
 
-//        val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
-//        writer.append(app.toString() + "\r\n")
-//        writer.close()
+        val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
+        writer.append(app.toString() + "\r\n")
+        writer.close()
     } catch (e: IOException) {
     } catch (e: Exception) {
         println(e.printStackTrace())

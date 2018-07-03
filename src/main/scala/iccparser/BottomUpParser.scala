@@ -17,6 +17,7 @@ import org.argus.jawa.core._
 import org.argus.jawa.core.util.{MSet, _}
 import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
+import soot.jimple.infoflow.android.source.AndroidSourceSinkManager.SourceType
 import writer.MethodWriter
 
 
@@ -49,7 +50,9 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
       getInnerClass(m, iccClass)
       val reachableIccClasses = reachableClasses.filter(x => x == iccClass)
       reachableIccClasses.foreach(c => {
-        println("class" + m.getDeclaringClass.getType.jawaName + "--INIT-->" + c.jawaName + " method " + m.getSignature)
+        println("class" + m.getDeclaringClass.getType.jawaName + "--INIT-->" + c.jawaName + " method " + m.getSignature.methodName)
+        graph.getOrElseUpdate((m.getDeclaringClass.getType.jawaName, c.jawaName, m.getSignature.methodName), msetEmpty)
+        iccMethods.getOrElseUpdate(m.getSignature, (m.getDeclaringClass.getType.jawaName, c.jawaName, m.getSignature.methodName))
       })
     }
   }
@@ -104,8 +107,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
         if (intent.componentNames.nonEmpty) {
           intent.componentNames.foreach(name => {
             println(context.getMethodSig.classTyp + " -ICC-> " + name + " by method " + context.getMethodSig.methodName)
-            graph.getOrElseUpdate((context.getMethodSig.classTyp.jawaName, name, context.getMethodSig.methodName), msetEmpty)
-            iccMethods.getOrElseUpdate(context.getMethodSig, (context.getMethodSig.classTyp.jawaName, name, context.getMethodSig.methodName))
+            addToGraph(context.getMethodSig, context.getMethodSig.classTyp, new JawaType(name), context.getMethodSig.methodName, apk)
           })
         }
         if (intent.actions.nonEmpty) {
@@ -118,8 +120,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
                     filter.getActions.foreach(u => {
                       if (u.equals(f)) {
                         println(context.getMethodSig.classTyp + " -ICC-Action-> " + f + " --> " + classType + " by method " + context.getMethodSig.methodName)
-                        graph.getOrElseUpdate((context.getMethodSig.classTyp.jawaName, classType.jawaName, context.getMethodSig.methodName + ";" + f), msetEmpty)
-                        iccMethods.getOrElseUpdate(context.getMethodSig, (context.getMethodSig.classTyp.jawaName, classType.jawaName, context.getMethodSig.methodName + ";" + f))
+                        addToGraph(context.getMethodSig, context.getMethodSig.classTyp, classType, context.getMethodSig.methodName + ";" + f, apk)
                       }
                     })
                   }
@@ -131,11 +132,30 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     collectIccByInits(apk)
   }
 
+  def getClassName(method: JawaType, apk: ApkGlobal): String = {
+    val methodClass = apk.getClazz(method).get
+    if (methodClass.isInnerClass) {
+      methodClass.getOuterType.get.jawaName
+    } else {
+      method.jawaName
+    }
+  }
+
+  def addToGraph(parent: Signature, sourceType: JawaType, targetType: JawaType, method: String, apk: ApkGlobal): Unit = {
+    val source = getClassName(sourceType, apk)
+    val target = getClassName(targetType, apk)
+    graph.getOrElseUpdate((source, target, method), msetEmpty)
+    iccMethods.getOrElseUpdate(parent, (source, target, method))
+  }
+
   def collectIccByInits(apk: ApkGlobal): Unit = {
 
     val iccClasses = iccMethods.keySet.map(x => x.classTyp)
 
     val entryPoints = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
+
+
+
     entryPoints.foreach(entryPoint => {
       //all methods
       val m = apk.getMethod(entryPoint).get

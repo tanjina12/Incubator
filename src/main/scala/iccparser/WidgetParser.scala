@@ -43,6 +43,8 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
                   }
                 case _ => ssm.collectWidgetsFromParentClass(apk, j, x._1, i)
               }
+            }else{
+              println()
             }
           })
         }
@@ -155,7 +157,6 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
       }
     })
 
-    println()
     graph
   }
 

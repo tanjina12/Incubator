@@ -10,11 +10,10 @@ import writer._
 class Argus {
 
   var baseResultPath: String = "./output"
-  var mode: String = "ACTIVITY"
+  var parseInnerClassToOuterClass: Boolean = true
 
-  def run(apkLocation: String, baseResultPath: String = "./output", mode: String): Unit = {
+  def run(apkLocation: String, baseResultPath: String = "./output"): Unit = {
     this.baseResultPath = baseResultPath
-    this.mode = mode
     val startTime = System.nanoTime
     println("Starttime : " + startTime)
     println("Running argus")

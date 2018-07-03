@@ -10,7 +10,7 @@ class DotGraphWriter(writer: Writer) extends BaseGraphWriter {
     graph.foreach {
       case ((source, target, method), widgets) =>
         widgets.foreach(widget => {
-          val line: String = "\"" + source + "\" -> \"" + target + "\" [label=" + method + ";" + widget + "]" + lineSeparator
+          val line: String = "\"" + source + "\" -> \"" + target + "\" [label=\"" + method + ";" + widget + "\"]" + lineSeparator
           writer.write(line)
         })
     }
