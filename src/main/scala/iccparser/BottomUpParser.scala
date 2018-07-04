@@ -44,20 +44,6 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
   }
 
 
-  def getReachableIccClasses(reachableClasses: Set[JawaType], iccClass: JawaType, m: JawaMethod): Unit = {
-    val isMethodInnerClass = getInnerClass(m, iccClass)
-    val isSameClass = m.getDeclaringClass.getType == iccClass
-    if (reachableClasses.contains(iccClass) && !isMethodInnerClass && !isSameClass) {
-      getInnerClass(m, iccClass)
-      val reachableIccClasses = reachableClasses.filter(x => x == iccClass)
-      reachableIccClasses.foreach(c => {
-        println("class" + m.getDeclaringClass.getType.jawaName + "--INIT-->" + c.jawaName + " method " + m.getSignature.methodName)
-        graph.getOrElseUpdate((m.getDeclaringClass.getType.jawaName, c.jawaName, m.getSignature.methodName), msetEmpty)
-        iccMethods.getOrElseUpdate(m.getSignature, (m.getDeclaringClass.getType.jawaName, c.jawaName, m.getSignature.methodName))
-      })
-    }
-  }
-
   def getInnerClass(method: JawaMethod, iccClass: JawaType): Boolean = {
     if (method.getDeclaringClass.isInnerClass) {
       val outerType = method.getDeclaringClass.getOuterType.get
@@ -209,12 +195,25 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
 
         // We dont care for inner class calling outerclass
         if (iccClass.isInnerClass) {
-          getReachableIccClasses(reachableClasses.keySet, iccClass.getOuterType.get, m)
+          getReachableIccClasses(reachableClasses.keySet, iccClass.getOuterType.get, m, apk)
         } else {
-          getReachableIccClasses(reachableClasses.keySet, iccClass.getType, m)
+          getReachableIccClasses(reachableClasses.keySet, iccClass.getType, m, apk)
         }
 
       })
     })
+  }
+
+  def getReachableIccClasses(reachableClasses: Set[JawaType], iccClass: JawaType, m: JawaMethod, apk: ApkGlobal): Unit = {
+    val isMethodInnerClass = getInnerClass(m, iccClass)
+    val isSameClass = m.getDeclaringClass.getType == iccClass
+    if (reachableClasses.contains(iccClass) && !isMethodInnerClass && !isSameClass) {
+      getInnerClass(m, iccClass)
+      val reachableIccClasses = reachableClasses.filter(x => x == iccClass)
+      reachableIccClasses.foreach(c => {
+        println("class" + m.getDeclaringClass.getType.jawaName + "--INIT-->" + c.jawaName + " method " + m.getSignature.methodName)
+        addToGraph(m.getSignature, m.getDeclaringClass.getType, c, m.getSignature.methodName, apk)
+      })
+    }
   }
 }

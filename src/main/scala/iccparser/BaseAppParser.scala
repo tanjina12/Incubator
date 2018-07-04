@@ -1,16 +1,19 @@
 package iccparser
 
+import java.io.PrintWriter
+
 import org.argus.amandroid.alir.componentSummary._
 import org.argus.amandroid.core.decompile.{DecompileLayout, DecompileStrategy, DecompilerSettings}
 import org.argus.amandroid.core.{AndroidGlobalConfig, ApkGlobal}
 import org.argus.jawa.core.util._
 import org.argus.jawa.core._
-import writer.BaseGraphWriter
+import writer._
 
 abstract class BaseAppParser() {
 
   val lineSeparator = "\r\n"
   var graph: MMap[(String, String, String), MSet[String]] = mmapEmpty
+  var transitiveGraph: MMap[(String, String, String), MSet[String]] = mmapEmpty
 
   def loadApk(apkLocation: String, yard: ApkYard, reporter: Reporter): ApkGlobal = {
     val apkUri = FileUtil.toUri(apkLocation)
@@ -68,6 +71,46 @@ abstract class BaseAppParser() {
           graph.getOrElseUpdate(k, msetEmpty) += ""
         }
     }
+  }
+
+  def writeTransitiveGraph(writers: Set[BaseGraphWriter], apk: ApkGlobal): Unit = {
+    val screens = collectComponents(apk).map(x => x.getType.jawaName)
+    println("-----------------------------------------")
+    graph.foreach({ x =>
+      val source = x._1._1
+      val target = x._1._2
+      if (screens.contains(source)) {
+        if (!screens.contains(target)) {
+          println("+++++")
+          println(source + " indirect " + target)
+          getTransitive(screens, source, target, Set(source))
+          println("+++++")
+        } else {
+          println(source + " direct   " + target)
+          transitiveGraph.getOrElseUpdate(x._1, x._2)
+        }
+      }
+    })
+    println("-----------------------------------------")
+
+    writers.foreach(w => w.write(transitiveGraph, apk.model.getPackageName))
+  }
+
+  def getTransitive(screens: Set[String], source: String, target: String, exclude: Set[String]): Unit = {
+    val reachable = graph.filter(x => x._1._1 == target && !exclude.contains(x._1._2))
+    reachable.foreach(x => {
+      val tsource = x._1._1
+      val ttarget = x._1._2
+      val method = x._1._3
+      if (screens.contains(ttarget)) {
+        println(source + " Transitive " + ttarget)
+        transitiveGraph.getOrElseUpdate((source, ttarget, method), msetEmpty) ++= x._2
+      } else {
+        println(tsource + " going deeper " + ttarget)
+        getTransitive(screens, source, ttarget, exclude + target)
+      }
+    })
+
   }
 
   def parse(apk: ApkGlobal, yard: ApkYard)

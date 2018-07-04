@@ -108,11 +108,13 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
     })
 
     reporter.println("Finished collecting widgets")
-    reporter.println("Find all reachable")
-    iccMethods.foreach(iccMethod => {
+    var callbackMethods = apk.model.getCallbackMethods
+    callbackMethods ++= callbackMethodAndWidget.keySet.diff(callbackMethods)
+    val iccMethodsWithCallbacks = iccMethods.filter(x => callbackMethods.contains(x._1))
+
+    reporter.println("Find all reachable " + iccMethodsWithCallbacks.size)
+    iccMethodsWithCallbacks.foreach(iccMethod => {
       print(".")
-      var callbackMethods = apk.model.getCallbackMethods
-      callbackMethods ++= callbackMethodAndWidget.keySet.diff(callbackMethods)
 
       callbackMethods.filter(s => s != iccMethod._1).foreach(s => {
         val reachables = callGraph.getReachableMethods(Set(s))
@@ -121,14 +123,14 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
         }
       })
 
-//      if (!callbackMethodAndWidget.contains(m._1)) {
-//        callbackMethodAndWidget.foreach(y => {
-//          val reachables = callGraph.getReachableMethods(Set(y._1))
-//          if (reachables.contains(m._1)) {
-//            indirectCallGraph1.getOrElseUpdate(m._1, msetEmpty) += y._1
-//          }
-//        })
-//      }
+      //      if (!callbackMethodAndWidget.contains(m._1)) {
+      //        callbackMethodAndWidget.foreach(y => {
+      //          val reachables = callGraph.getReachableMethods(Set(y._1))
+      //          if (reachables.contains(m._1)) {
+      //            indirectCallGraph1.getOrElseUpdate(m._1, msetEmpty) += y._1
+      //          }
+      //        })
+      //      }
 
     })
 
@@ -138,6 +140,7 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
     //    printWidget(callbackMethodAndWidget, reporter)
 
     reporter.println("Binding methods with widgets")
+    
     iccMethods.foreach(iccMethod => {
       print(".")
       if (callbackMethodAndWidget.contains(iccMethod._1)) {
