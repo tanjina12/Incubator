@@ -1,5 +1,7 @@
 package iccparser
 
+import java.io.{File, FileOutputStream, PrintWriter}
+
 import callbacks.WidgetAndCallBackManager
 import hu.ssh.progressbar.console.ConsoleProgressBar
 import org.argus.amandroid.alir.componentSummary.ApkYard
@@ -76,15 +78,9 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
     callGraph = SignatureBasedCallGraph(apk, apk.getApplicationClasses.flatMap(x => x.getDeclaredMethods).map(x => x.getSignature), None)
     //    val cg = SignatureBasedCallGraph(apk, apk.model.getComponentInfos.flatMap(apk.getEntryPoints), None)
-    val lol1 = apk.getApplicationClasses.map(x => x.getType.getPackageName)
-    val lol2 = apk.model.getPackageName
-    val lol3 = apk.getApplicationClasses.filter(x => x.getType.getPackageName == apk.model.getPackageName)
-    val libs = new DefaultLibraryAPISummary(AndroidGlobalConfig.settings.third_party_lib_file)
-    val libs1 = new DefaultLibraryAPISummary("./thirdpartylibs.txt")
 
-    val lol4 = apk.getApplicationClasses.filter(x =>  libs.isLibraryClass(x.getType))
+
     analyseLibrary(apk)
-    println()
     val orderedWUs: IList[Option[IntentWu]] = callGraph.topologicalSort(true).map { sig =>
       //      val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
       //      new IntentWu(apk, method, sm, handler, store, "intent")
@@ -101,12 +97,30 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     analysis.build(orderedWUs.flatten)
   }
 
-  def analyseLibrary(apk : ApkGlobal): Unit ={
+  def analyseLibrary(apk: ApkGlobal): Unit = {
     val allPackageNames = apk.getApplicationClasses.map(x => x.getType.getPackageName)
-    val potentialLibraries = allPackageNames.filter(x => x != apk.model.getPackageName)
-    println("Found libraries in for the following app " + apk.model.getPackageName)
-    potentialLibraries.foreach(println)
+    val potentialLibraries = allPackageNames.filter(x => !x.contains(apk.model.getPackageName))
+
+    if (potentialLibraries.nonEmpty) {
+      val writer = new DefaultReporter()
+      val write = new PrintWriter(new FileOutputStream(new File("potential_libraries_to_exclude.txt"), true))
+
+      write.println("Found libraries in for the following app " + apk.model.getPackageName)
+      writer.println("Found libraries in for the following app " + apk.model.getPackageName)
+      potentialLibraries.foreach(x => {
+        writer.warning("Libraries_analyser", x)
+        write.println(x)
+      })
+      write.close()
+    }
   }
+
+  private def getOutputDirUri(outputUri: FileResourceUri, apkUri: FileResourceUri): FileResourceUri = {
+    outputUri + {
+      if (!outputUri.endsWith("/")) "/" else ""
+    } + apkUri.substring(apkUri.lastIndexOf("/") + 1, apkUri.lastIndexOf("."))
+  }
+
 
   def collectIntents(apk: ApkGlobal): Unit = {
     val candidate = store.getPropertyOrElse[MSet[(Context, PTASlot)]]("intent", msetEmpty)
@@ -156,11 +170,14 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
   }
 
   def getClassName(method: JawaType, apk: ApkGlobal): String = {
-    val methodClass = apk.getClazz(method).get
-    if (methodClass.isInnerClass) {
-      methodClass.getOuterType.get.jawaName
-    } else {
-      method.jawaName
+    apk.getClazz(method) match {
+      case Some(methodClass) =>
+        if (methodClass.isInnerClass) {
+          methodClass.getOuterType.get.jawaName
+        } else {
+          method.jawaName
+        }
+      case None => method.jawaName
     }
   }
 

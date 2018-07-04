@@ -22,7 +22,7 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
 
     val test = callGraph.getCallMap.filter(x => x._2.exists(i => i.getParameterTypes.exists(j => androidCallBacks.contains(j.baseTyp))))
 
-    callGraph.getCallMap.foreach(x => {
+    test.foreach(x => {
       print(".")
       x._2.foreach(j => {
         if (j.getParameterTypes.exists(i => androidCallBacks.contains(i.baseTyp))) {
@@ -68,7 +68,6 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
   def bindWidgetsToIccMethods(apk: ApkGlobal, reporter: Reporter): MMap[(String, String, String), MSet[String]] = {
     println("Finding widgets...")
     val indirectCallGraph: MMap[Signature, MSet[Signature]] = mmapEmpty
-    val indirectCallGraph1: MMap[Signature, MSet[Signature]] = mmapEmpty
     val callbackMethodAndWidgetId = AppInfoCollector.layoutIdWithCallBackMethods
 
     reporter.println("Collect widgets from loc")
@@ -110,37 +109,37 @@ class WidgetParser(callGraph: CallGraph, iccMethods: MMap[Signature, (String, St
 
     reporter.println("Finished collecting widgets")
     reporter.println("Find all reachable")
-    iccMethods.foreach(m => {
+    iccMethods.foreach(iccMethod => {
+      print(".")
       var callbackMethods = apk.model.getCallbackMethods
       callbackMethods ++= callbackMethodAndWidget.keySet.diff(callbackMethods)
 
-      callbackMethods.foreach(s => {
-        if (s != m._1) {
-          val reachables = callGraph.getReachableMethods(Set(s))
-          if (reachables.contains(m._1)) {
-            indirectCallGraph.getOrElseUpdate(m._1, msetEmpty) += s
-          }
+      callbackMethods.filter(s => s != iccMethod._1).foreach(s => {
+        val reachables = callGraph.getReachableMethods(Set(s))
+        if (reachables.contains(iccMethod._1)) {
+          indirectCallGraph.getOrElseUpdate(iccMethod._1, msetEmpty) += s
         }
       })
+
+//      if (!callbackMethodAndWidget.contains(m._1)) {
+//        callbackMethodAndWidget.foreach(y => {
+//          val reachables = callGraph.getReachableMethods(Set(y._1))
+//          if (reachables.contains(m._1)) {
+//            indirectCallGraph1.getOrElseUpdate(m._1, msetEmpty) += y._1
+//          }
+//        })
+//      }
+
     })
 
-    iccMethods.foreach(m => {
-      if (!callbackMethodAndWidget.contains(m._1)) {
-        callbackMethodAndWidget.foreach(y => {
-          val reachables = callGraph.getReachableMethods(Set(y._1))
-          if (reachables.contains(m._1)) {
-            indirectCallGraph1.getOrElseUpdate(m._1, msetEmpty) += y._1
-          }
-        })
-      }
-    })
 
     //    printICCWidget(apk, callbackMethodAndWidget, reporter)
     //    printIntentsWidget(callbackMethodAndWidget, reporter)
     //    printWidget(callbackMethodAndWidget, reporter)
 
-    reporter.println("Binding methods with widgets..")
+    reporter.println("Binding methods with widgets")
     iccMethods.foreach(iccMethod => {
+      print(".")
       if (callbackMethodAndWidget.contains(iccMethod._1)) {
         val widgets = callbackMethodAndWidget(iccMethod._1)
         widgets.foreach(widget => {

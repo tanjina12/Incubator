@@ -16,7 +16,7 @@ abstract class BaseAppParser() {
     val apkUri = FileUtil.toUri(apkLocation)
     val outputUri = FileUtil.toUri("./output")
     val layout = DecompileLayout(outputUri, createFolder = true, "src", "lib", createSeparateFolderForDexes = true)
-    val strategy = DecompileStrategy(layout, new DefaultLibraryAPISummary("./thirdpartylibs.txt"))
+    val strategy = DecompileStrategy(layout, new DefaultLibraryAPISummary(AndroidGlobalConfig.settings.third_party_lib_file))
     val settings = DecompilerSettings(debugMode = false, forceDelete = true, strategy, reporter)
     yard.loadApk(apkUri, settings, collectInfo = true, resolveCallBack = true, guessAppPackages = false)
   }
@@ -63,11 +63,10 @@ abstract class BaseAppParser() {
 
   def preProcess(): Unit = {
     graph.foreach {
-      case (k, v) => {
+      case (k, v) =>
         if (v.isEmpty) {
           graph.getOrElseUpdate(k, msetEmpty) += ""
         }
-      }
     }
   }
 
