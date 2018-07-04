@@ -6,7 +6,7 @@ import org.argus.amandroid.alir.componentSummary.ApkYard
 import org.argus.amandroid.alir.pta.model.AndroidModelCallHandler
 import org.argus.amandroid.alir.pta.reachingFactsAnalysis.IntentHelper
 import org.argus.amandroid.alir.pta.summaryBasedAnalysis.AndroidSummaryProvider
-import org.argus.amandroid.core.ApkGlobal
+import org.argus.amandroid.core.{AmandroidSettings, AndroidGlobalConfig, ApkGlobal}
 import org.argus.amandroid.core.model.Intent
 import org.argus.amandroid.summary.wu.IntentWu
 import org.argus.jawa.alir.Context
@@ -76,7 +76,15 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
     callGraph = SignatureBasedCallGraph(apk, apk.getApplicationClasses.flatMap(x => x.getDeclaredMethods).map(x => x.getSignature), None)
     //    val cg = SignatureBasedCallGraph(apk, apk.model.getComponentInfos.flatMap(apk.getEntryPoints), None)
+    val lol1 = apk.getApplicationClasses.map(x => x.getType.getPackageName)
+    val lol2 = apk.model.getPackageName
+    val lol3 = apk.getApplicationClasses.filter(x => x.getType.getPackageName == apk.model.getPackageName)
+    val libs = new DefaultLibraryAPISummary(AndroidGlobalConfig.settings.third_party_lib_file)
+    val libs1 = new DefaultLibraryAPISummary("./thirdpartylibs.txt")
 
+    val lol4 = apk.getApplicationClasses.filter(x =>  libs.isLibraryClass(x.getType))
+    analyseLibrary(apk)
+    println()
     val orderedWUs: IList[Option[IntentWu]] = callGraph.topologicalSort(true).map { sig =>
       //      val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
       //      new IntentWu(apk, method, sm, handler, store, "intent")
@@ -91,6 +99,13 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     }
 
     analysis.build(orderedWUs.flatten)
+  }
+
+  def analyseLibrary(apk : ApkGlobal): Unit ={
+    val allPackageNames = apk.getApplicationClasses.map(x => x.getType.getPackageName)
+    val potentialLibraries = allPackageNames.filter(x => x != apk.model.getPackageName)
+    println("Found libraries in for the following app " + apk.model.getPackageName)
+    potentialLibraries.foreach(println)
   }
 
   def collectIntents(apk: ApkGlobal): Unit = {
