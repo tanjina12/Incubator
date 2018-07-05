@@ -16,7 +16,7 @@ import org.argus.jawa.alir.cg.CallGraph
 import org.argus.jawa.alir.pta.PTASlot
 import org.argus.jawa.alir.reachability.SignatureBasedCallGraph
 import org.argus.jawa.core._
-import org.argus.jawa.core.util.{MSet, _}
+import org.argus.jawa.core.util.{ISet, MSet, _}
 import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
 import writer.MethodWriter
@@ -62,15 +62,13 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val sm: SummaryManager = new AndroidSummaryProvider(apk).getSummaryManager
     val analysis = new BottomUpSummaryGenerator[Global](apk, sm, handler, PTSummary(_, _), ConsoleProgressBar.on(System.out).withFormat("[:bar] :percent% :elapsed Left: :remain"))
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
-    callGraph = SignatureBasedCallGraph(apk, apk.getApplicationClasses.flatMap(x => x.getDeclaredMethods).map(x => x.getSignature), None)
-    //    val cg = SignatureBasedCallGraph(apk, apk.model.getComponentInfos.flatMap(apk.getEntryPoints), None)
-
+    val allSigs: ISet[Signature] = apk.getApplicationClasses.flatMap(x => x.getDeclaredMethods).map(x => x.getSignature)
 
     analyseLibrary(apk)
-    val orderedWUs: IList[Option[IntentWu]] = callGraph.topologicalSort(true).map { sig =>
-      //      val method = apk.getMethodOrResolve(sig).getOrElse(throw new RuntimeException("Method does not exist: " + sig))
-      //      new IntentWu(apk, method, sm, handler, store, "intent")
 
+    callGraph = SignatureBasedCallGraph(apk, allSigs, None)
+
+    val orderedWUs: IList[Option[IntentWu]] = callGraph.topologicalSort(true).map { sig =>
       apk.getMethodOrResolve(sig) match {
         case Some(method) => Some(new IntentWu(apk, method, sm, handler, store, "intent"))
         case None =>
