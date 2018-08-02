@@ -5,7 +5,7 @@ import java.io.{File, FileOutputStream, PrintWriter}
 import callbacks.WidgetAndCallBackManager
 import hu.ssh.progressbar.console.ConsoleProgressBar
 import org.argus.amandroid.alir.componentSummary.ApkYard
-import org.argus.amandroid.alir.pta.model.AndroidModelCallHandler
+import org.argus.amandroid.alir.pta.model.{AndroidModelCallHandler, InterComponentCommunicationModel}
 import org.argus.amandroid.alir.pta.reachingFactsAnalysis.IntentHelper
 import org.argus.amandroid.alir.pta.summaryBasedAnalysis.AndroidSummaryProvider
 import org.argus.amandroid.core.{AmandroidSettings, AndroidGlobalConfig, ApkGlobal}
@@ -19,12 +19,13 @@ import org.argus.jawa.core._
 import org.argus.jawa.core.util.{ISet, MSet, _}
 import org.argus.jawa.summary.wu._
 import org.argus.jawa.summary.{BottomUpSummaryGenerator, SummaryManager}
-import writer.MethodWriter
+import writer.{BaseGraphWriter, MethodWriter}
 
 
 class BottomUpParser(store: PTStore) extends BaseAppParser {
 
-  var iccMethods: MMap[Signature, (String, String, String)] = mmapEmpty
+
+  var iccMethods: MMap[Signature, MSet[(String, String, String)]] = mmapEmpty
   val ssm = new WidgetAndCallBackManager(new PrintReporter(MsgLevel.WARNING))
   var callGraph: CallGraph = new CallGraph()
 
@@ -61,6 +62,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val handler: AndroidModelCallHandler = new AndroidModelCallHandler
     val sm: SummaryManager = new AndroidSummaryProvider(apk).getSummaryManager
     val analysis = new BottomUpSummaryGenerator[Global](apk, sm, handler, PTSummary(_, _), ConsoleProgressBar.on(System.out).withFormat("[:bar] :percent% :elapsed Left: :remain"))
+
     val signatures: ISet[Signature] = apk.model.getComponentInfos.flatMap(apk.getEntryPoints)
     val allSigs: ISet[Signature] = apk.getApplicationClasses.flatMap(x => x.getDeclaredMethods).map(x => x.getSignature)
 
@@ -169,7 +171,7 @@ class BottomUpParser(store: PTStore) extends BaseAppParser {
     val source = getClassName(sourceType, apk)
     val target = getClassName(targetType, apk)
     graph.getOrElseUpdate((source, target, method), msetEmpty)
-    iccMethods.getOrElseUpdate(parent, (source, target, method))
+    iccMethods.getOrElseUpdate(parent, msetEmpty) += ((source, target, method))
   }
 
   def collectIccByInits(apk: ApkGlobal): Unit = {

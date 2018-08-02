@@ -21,13 +21,12 @@ abstract class BaseAppParser() {
     val layout = DecompileLayout(outputUri, createFolder = true, "src", "lib", createSeparateFolderForDexes = true)
     val strategy = DecompileStrategy(layout, new DefaultLibraryAPISummary(AndroidGlobalConfig.settings.third_party_lib_file))
     val settings = DecompilerSettings(debugMode = false, forceDelete = true, strategy, reporter)
-    yard.loadApk(apkUri, settings, collectInfo = true, resolveCallBack = true, guessAppPackages = false)
+    yard.loadApk(apkUri, settings, collectInfo = true, resolveCallBack = true, guessAppPackages = true)
   }
 
   def collectComponents(apk: ApkGlobal): Set[JawaClass] = {
     val applicationClasses = apk.getApplicationClasses
     val activities = apk.model.getActivities.map(a => a.jawaName)
-
 
     var components = applicationClasses.filter(k => {
       apk.getClassHierarchy.getAllSuperClassesOf(k).exists(getClassesToFilter(apk).contains)
@@ -73,8 +72,7 @@ abstract class BaseAppParser() {
     }
   }
 
-  def writeTransitiveGraph(writers: Set[BaseGraphWriter], apk: ApkGlobal): Unit = {
-    val screens = collectComponents(apk).map(x => x.getType.jawaName)
+  def writeTransitiveGraph(writers: Set[BaseGraphWriter], apk: ApkGlobal, screens: ISet[String]): Unit = {
     println("-----------------------------------------")
     graph.foreach({ x =>
       val source = x._1._1

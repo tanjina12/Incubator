@@ -57,10 +57,16 @@ class Argus {
 
     println("Write transitive graph to file")
     val tcsvWriter: CsvGraphWriter = new CsvGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}-transitive.csv"))
+    val tacsvWriter: BaseGraphWriter = new CsvGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}-act-transitive.csv"))
     val txmlWriter: XmlGraphWriter = new XmlGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}-transitive.xml"))
     val tdotWriter: DotGraphWriter = new DotGraphWriter(new PrintWriter(s"$baseResultPath/${apk.model.getPackageName}-transitive.dot"))
     val twriters = Set(tcsvWriter, txmlWriter, tdotWriter)
-    parser.writeTransitiveGraph(twriters, apk)
+
+    val tawriters = Set(tacsvWriter)
+
+    parser.writeTransitiveGraph(twriters, apk, parser.collectComponents(apk).map(x => x.getType.jawaName))
+
+    parser.writeTransitiveGraph(tawriters, apk, apk.model.getActivities.map(x => x.jawaName))
 
     println(s"Finished analysis for ${apk.model.getPackageName}")
   }

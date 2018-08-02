@@ -8,11 +8,11 @@ import org.argus.jawa.core.util._
 
 class WidgetAndCallBackManager(reporter: Reporter) {
 
-  val callbackClasses: MMap[JawaClass, Location] = mmapEmpty
-  val callBackMethods: MMap[Signature, MSet[Location]] = mmapEmpty
+  val callbackClasses: MMap[JawaClass, (Location, Option[Int])] = mmapEmpty
+  val callBackMethods: MMap[Signature, MSet[(Location, Option[Int])]] = mmapEmpty
   val androidCallBacks = new AndroidCallBacks().initAndroidCallbacks
 
-  def collectWidgetsFromParentClass(apk: ApkGlobal, calleeSig: Signature, callerSig: Signature, callerLoc: Location): Unit = {
+  def collectWidgetsFromParentClass(apk: ApkGlobal, calleeSig: Signature, callerSig: Signature, callerLoc: (Location, Option[Int])): Unit = {
 
 
     val param = calleeSig.getParameterTypes.head
@@ -32,13 +32,13 @@ class WidgetAndCallBackManager(reporter: Reporter) {
     }
 
     this.callbackClasses.foreach(x => {
-      val locs: MSet[Location] = msetEmpty
+      val locs: MSet[(Location, Option[Int])] = msetEmpty
       locs.add(x._2)
       analyzeClass(x._1, callerSig.classTyp, locs)
     })
   }
 
-  def collectWidgetsForInitListener(apk: ApkGlobal, cbb: MMap[(Signature, JawaType), MSet[Location]]): Unit = {
+  def collectWidgetsForInitListener(apk: ApkGlobal, cbb: MMap[(Signature, JawaType), MSet[(Location, Option[Int])]]): Unit = {
     cbb.foreach(x => {
       val lifeCycle = x._1._1.classTyp
       val listenerInit = apk.getClassOrResolve(x._1._2)
@@ -47,7 +47,7 @@ class WidgetAndCallBackManager(reporter: Reporter) {
 
   }
 
-  private def analyzeClass(clazz: JawaClass, lifecycleElement: JawaType, location: MSet[Location]): Unit = {
+  private def analyzeClass(clazz: JawaClass, lifecycleElement: JawaType, location: MSet[(Location, Option[Int])]): Unit = {
     // Do not analyze system classes
     if (clazz.getName.startsWith("android.") || clazz.getName.startsWith("com.android.") || clazz.getName.startsWith("java."))
       return
@@ -59,7 +59,7 @@ class WidgetAndCallBackManager(reporter: Reporter) {
     analyzeClassInterfaceCallbacks(clazz, clazz, lifecycleElement, location)
   }
 
-  private def analyzeClassInterfaceCallbacks(baseClass: JawaClass, clazz: JawaClass, lifecycleElement: JawaType, location: MSet[Location]): Unit = {
+  private def analyzeClassInterfaceCallbacks(baseClass: JawaClass, clazz: JawaClass, lifecycleElement: JawaType, location: MSet[(Location, Option[Int])]): Unit = {
     // We cannot create instances of abstract classes anyway, so there is no
     // reason to look for interface implementations
     if (!baseClass.isConcrete) {
@@ -89,7 +89,7 @@ class WidgetAndCallBackManager(reporter: Reporter) {
     }
   }
 
-  private def checkAndAddMethod(proc: JawaMethod, lifecycleElement: JawaType, location: MSet[Location]) = {
+  private def checkAndAddMethod(proc: JawaMethod, lifecycleElement: JawaType, location: MSet[(Location, Option[Int])]) = {
     if (!proc.getFullName.startsWith("android.")) {
       //      reporter.println("Found internal method " + proc.getSignature)
       this.callBackMethods.getOrElseUpdate(proc.getSignature, msetEmpty) ++= location

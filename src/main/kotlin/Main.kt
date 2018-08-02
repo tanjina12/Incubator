@@ -19,11 +19,9 @@ fun main(args: Array<String>) {
     println("Starting incubator")
     val config = ConfigurationProperties.fromFile(File("incubator.properties"))
     val basePathResult = config[incubator.output]
-//    val mode = config[incubator.mode]
     val ignoreAppsFile = config[incubator.ignoreApps]
-//    val parseInnerClassToOuterClass = config[incubator.parseInnerClassAdOuterClass]
 
-    var ignoreApps = File(ignoreAppsFile).readLines().toSet()
+    val ignoreApps = File(ignoreAppsFile).readLines().toSet()
 //    ignoreApps += File("timeout.txt").readLines().toSet()
 
     File(config[incubator.apk]).walk().forEach {
@@ -48,9 +46,10 @@ fun runFlowDroid() {
 
 fun runArgus(app: File, basePathResult: String) = runBlocking<Unit> {
     try {
+        val config = ConfigurationProperties.fromFile(File("incubator.properties"))
 
         val d = async { Argus().run(app.toString(), basePathResult) } // run the block code in background
-        withTimeout(60, TimeUnit.MINUTES) { d.await() } // wait with timeout
+        withTimeout(config[incubator.timeout], TimeUnit.MINUTES) { d.await() } // wait with timeout
 
         val writer = PrintWriter(FileOutputStream(File("succes.csv"), true))
         writer.append(app.toString() + "\r\n")
